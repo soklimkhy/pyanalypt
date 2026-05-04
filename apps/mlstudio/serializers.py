@@ -64,14 +64,14 @@ class MLModelSerializer(serializers.ModelSerializer):
             "task_type", "algorithm",
             "feature_columns", "target_column",
             "hyperparams", "test_size",
-            "status", "error_message",
+            "status", "progress", "error_message",
             "metrics", "feature_importances", "label_classes",
             "train_samples", "test_samples", "training_time_seconds",
             "allowed_hyperparams",
             "created_at", "updated_at",
         ]
         read_only_fields = [
-            "id", "status", "error_message",
+            "id", "status", "progress", "error_message",
             "metrics", "feature_importances", "label_classes",
             "train_samples", "test_samples", "training_time_seconds",
             "created_at", "updated_at", "dataset_name",

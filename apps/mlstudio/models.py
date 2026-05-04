@@ -49,6 +49,7 @@ class MLModel(models.Model):
                                         help_text="Empty for clustering tasks.")
     hyperparams     = models.JSONField(default=dict, blank=True)
     test_size       = models.FloatField(default=0.2)
+    progress        = models.IntegerField(default=0, help_text="Training progress (0-100).")
 
     status          = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     error_message   = models.TextField(blank=True, default="")

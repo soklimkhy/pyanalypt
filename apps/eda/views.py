@@ -2,6 +2,7 @@ import logging
 
 import pandas as pd
 from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.core.data_engine import (
@@ -19,6 +20,8 @@ from apps.core.data_engine import (
     get_cached_dataframe,
 )
 from apps.datasets.models import Dataset
+from apps.core.ollama_client import stream_interpret_eda
+from django.http import StreamingHttpResponse
 
 logger = logging.getLogger(__name__)
 
@@ -356,3 +359,28 @@ class EDAViewSet(viewsets.ViewSet):
             logger.exception("eda_pairwise failed for dataset %s", dataset_id)
             return Response({"detail": "Internal error computing pairwise scatter."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(data)
+
+    @action(detail=True, methods=["post"])
+    def interpret(self, request, dataset_id=None):
+        """
+        POST /api/v1/eda/{dataset_id}/interpret/
+        Body: { "eda_type": "correlation", "data": {...}, "columns": [...] }
+        Streams AI interpretation of the provided EDA results.
+        """
+        eda_type = request.data.get("eda_type")
+        data = request.data.get("data")
+        columns = request.data.get("columns")
+
+        if not eda_type or not data:
+            return Response(
+                {"detail": "'eda_type' and 'data' are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        response = StreamingHttpResponse(
+            stream_interpret_eda(eda_type, data, columns),
+            content_type="text/event-stream"
+        )
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"
+        return response

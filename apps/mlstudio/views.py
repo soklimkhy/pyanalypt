@@ -1,4 +1,5 @@
 import logging
+import threading
 
 from django.core.files.base import ContentFile
 from django.shortcuts import get_object_or_404
@@ -22,7 +23,7 @@ from .serializers import MLModelSerializer, PredictSerializer, TrainModelSeriali
 logger = logging.getLogger(__name__)
 
 
-def _load_df(dataset, user):
+def _load_df(dataset):
     """Load and cast a dataset's DataFrame. Returns (df, error_response)."""
     df = get_cached_dataframe(
         dataset.id, dataset.file.path, dataset.file_format, version=dataset.updated_date
@@ -35,6 +36,54 @@ def _load_df(dataset, user):
     if dataset.column_casts:
         df = apply_stored_casts(df, dataset.column_casts)
     return df, None
+
+
+def _run_training(ml_model_id, df_clean):
+    """Background task to train the model and update its status."""
+    from django.db import connections
+    try:
+        ml_model = MLModel.objects.get(pk=ml_model_id)
+        ml_model.progress = 10
+        ml_model.save(update_fields=["progress"])
+
+        result = train_model(
+            df=df_clean,
+            task_type=ml_model.task_type,
+            algorithm=ml_model.algorithm,
+            feature_columns=ml_model.feature_columns,
+            target_column=ml_model.target_column or None,
+            hyperparams=ml_model.hyperparams,
+            test_size=ml_model.test_size,
+        )
+
+        ml_model.progress = 90
+        ml_model.save(update_fields=["progress"])
+
+        # Persist model artifact
+        filename = f"{ml_model.pk}.joblib"
+        ml_model.model_file.save(filename, ContentFile(result["model_bytes"]), save=False)
+        
+        ml_model.status              = MLModel.STATUS_READY
+        ml_model.progress            = 100
+        ml_model.metrics             = result["metrics"]
+        ml_model.feature_importances = result["feature_importances"]
+        ml_model.label_classes       = result["label_classes"]
+        ml_model.train_samples       = result["train_samples"]
+        ml_model.test_samples        = result["test_samples"]
+        ml_model.training_time_seconds = result["training_time_seconds"]
+        ml_model.save()
+
+    except Exception as exc:
+        logger.exception("Background training failed for MLModel %s", ml_model_id)
+        try:
+            ml_model = MLModel.objects.get(pk=ml_model_id)
+            ml_model.status = MLModel.STATUS_FAILED
+            ml_model.error_message = str(exc)
+            ml_model.save(update_fields=["status", "error_message"])
+        except Exception:
+            pass
+    finally:
+        connections.close_all()
 
 
 class MLModelViewSet(viewsets.ViewSet):
@@ -59,7 +108,7 @@ class MLModelViewSet(viewsets.ViewSet):
     def create(self, request):
         """
         POST /mlstudio/
-        Validate input, load dataset, train model, persist result — all in one call.
+        Validate input, launch background training, return immediately with 202 Accepted.
         """
         s = TrainModelSerializer(data=request.data)
         s.is_valid(raise_exception=True)
@@ -67,7 +116,7 @@ class MLModelViewSet(viewsets.ViewSet):
 
         dataset = get_object_or_404(Dataset, pk=data["dataset_id"], user=request.user)
 
-        df, err = _load_df(dataset, request.user)
+        df, err = _load_df(dataset)
         if err:
             return err
 
@@ -118,42 +167,14 @@ class MLModelViewSet(viewsets.ViewSet):
             hyperparams=sanitized_hp,
             test_size=data["test_size"],
             status=MLModel.STATUS_TRAINING,
+            progress=0,
         )
 
-        # Train
-        try:
-            result = train_model(
-                df=df_clean,
-                task_type=data["task_type"],
-                algorithm=data["algorithm"],
-                feature_columns=data["feature_columns"],
-                target_column=target_col or None,
-                hyperparams=sanitized_hp,
-                test_size=data["test_size"],
-            )
-        except Exception as exc:
-            logger.exception("Training failed for MLModel %s", ml_model.pk)
-            ml_model.status = MLModel.STATUS_FAILED
-            ml_model.error_message = str(exc)
-            ml_model.save(update_fields=["status", "error_message"])
-            return Response(
-                {"detail": f"Training failed: {exc}", "model_id": ml_model.pk},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        # Launch background thread
+        thread = threading.Thread(target=_run_training, args=(ml_model.pk, df_clean))
+        thread.start()
 
-        # Persist model artifact
-        filename = f"{ml_model.pk}.joblib"
-        ml_model.model_file.save(filename, ContentFile(result["model_bytes"]), save=False)
-        ml_model.status              = MLModel.STATUS_READY
-        ml_model.metrics             = result["metrics"]
-        ml_model.feature_importances = result["feature_importances"]
-        ml_model.label_classes       = result["label_classes"]
-        ml_model.train_samples       = result["train_samples"]
-        ml_model.test_samples        = result["test_samples"]
-        ml_model.training_time_seconds = result["training_time_seconds"]
-        ml_model.save()
-
-        return Response(MLModelSerializer(ml_model).data, status=status.HTTP_201_CREATED)
+        return Response(MLModelSerializer(ml_model).data, status=status.HTTP_202_ACCEPTED)
 
     def destroy(self, request, pk=None):
         """DELETE /mlstudio/{id}/"""
@@ -182,7 +203,7 @@ class MLModelViewSet(viewsets.ViewSet):
         dataset_id = s.validated_data.get("dataset_id") or ml_model.dataset_id
 
         dataset = get_object_or_404(Dataset, pk=dataset_id, user=request.user)
-        df, err = _load_df(dataset, request.user)
+        df, err = _load_df(dataset)
         if err:
             return err
 
@@ -198,7 +219,7 @@ class MLModelViewSet(viewsets.ViewSet):
             ml_model.model_file.open("rb")
             model_bytes = ml_model.model_file.read()
             ml_model.model_file.close()
-        except Exception as exc:
+        except Exception:
             logger.exception("Could not read model file for MLModel %s", ml_model.pk)
             return Response(
                 {"detail": "Could not read model artifact."},

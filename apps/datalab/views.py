@@ -13,8 +13,10 @@ from django.core.files.base import ContentFile
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.http import StreamingHttpResponse
 
 from apps.datasets.models import Dataset, DatasetActivityLog, DatasetSnapshot
+from apps.core.ollama_client import stream_suggest_cleaning
 from .serializers import (
     CastColumnsSerializer,
     UpdateCellSerializer,
@@ -23,7 +25,6 @@ from .serializers import (
     ReplaceValuesSerializer,
     DropNullsSerializer,
     FillNullsSerializer,
-    FormulaSerializer,
     AddColumnSerializer,
     OutlierParamsSerializer,
     ImputeOutliersSerializer,
@@ -65,17 +66,8 @@ from apps.core.data_engine import (
     extract_datetime_features as df_extract_datetime_features,
     encode_columns as df_encode_columns,
     normalize_column_names as df_normalize_column_names,
-    FILL_STRATEGIES,
-    SUPPORTED_CASTS,
-    SUPPORTED_FORMULAS,
     OUTLIER_METHODS,
-    OUTLIER_IMPUTE_STRATEGIES,
-    COLUMN_TRANSFORMS,
-    FILTER_OPERATORS,
-    STRING_OPERATIONS,
-    SCALE_METHODS,
-    DATETIME_FEATURES,
-    ENCODE_STRATEGIES,
+    SUPPORTED_FORMULAS,
 )
 
 logger = logging.getLogger(__name__)
@@ -1360,3 +1352,35 @@ class DatalabViewSet(viewsets.ViewSet):
                 return Response({"detail": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({"renamed": rename_map, "columns": list(df.columns)})
+
+    @action(detail=True, methods=["get"])
+    def suggest_cleaning(self, request, dataset_id=None):
+        """
+        GET /api/v1/datalab/suggest-cleaning/{dataset_id}/
+        Streams AI-generated cleaning suggestions based on dataset stats.
+        """
+        dataset = get_object_or_404(Dataset, pk=dataset_id, user=request.user)
+        df = get_cached_dataframe(dataset.id, dataset.file.path, dataset.file_format, version=dataset.updated_date)
+        if df is None:
+            return Response({"detail": _LOAD_FAILED}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if dataset.column_casts:
+            df = apply_stored_casts(df, dataset.column_casts)
+
+        # Build a stats summary for the AI
+        stats_summary = []
+        for col in df.columns:
+            stats_summary.append({
+                "column": col,
+                "dtype": str(df[col].dtype),
+                "null_pct": round(df[col].isna().mean() * 100, 1),
+                "unique_count": int(df[col].nunique()),
+            })
+
+        response = StreamingHttpResponse(
+            stream_suggest_cleaning(list(df.columns), stats_summary),
+            content_type="text/event-stream"
+        )
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"
+        return response

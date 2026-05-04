@@ -79,6 +79,36 @@ def stream_suggest_questions(columns, problem_statement=""):
     yield from _sse_stream(client, prompt, system_prompt)
 
 
+def stream_interpret_eda(eda_type, data, columns=None):
+    """Interpret EDA results (correlation, distribution, etc.) using AI."""
+    client = OllamaClient()
+    system_prompt = (
+        "You are an expert data scientist. Interpret the following statistical results "
+        "and explain them in simple, actionable terms for a business user. "
+        "Focus on key insights, surprising patterns, and potential next steps."
+    )
+    prompt = f"EDA Type: {eda_type}\n"
+    if columns:
+        prompt += f"Columns: {', '.join(columns)}\n"
+    prompt += f"Results Data: {json.dumps(data, indent=2)}\n\n"
+    prompt += "Provide a clear interpretation of these results."
+    yield from _sse_stream(client, prompt, system_prompt)
+
+
+def stream_suggest_cleaning(columns, stats_summary):
+    """Suggest data cleaning operations based on dataset statistics."""
+    client = OllamaClient()
+    system_prompt = (
+        "You are an expert data engineer. Analyze the dataset statistics and suggest "
+        "specific cleaning steps (e.g., imputing nulls, handling outliers, casting types). "
+        "Be specific about which columns need what action and why."
+    )
+    prompt = f"Columns: {', '.join(columns)}\n"
+    prompt += f"Statistics Summary: {json.dumps(stats_summary, indent=2)}\n\n"
+    prompt += "Provide a list of recommended cleaning operations."
+    yield from _sse_stream(client, prompt, system_prompt)
+
+
 # ── AI Chat on Data ────────────────────────────────────────────────────────────
 
 def build_dataset_context(df: pd.DataFrame, dataset_name: str = "", max_rows: int = 5) -> str:
