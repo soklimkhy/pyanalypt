@@ -10,6 +10,10 @@ from django.http import HttpResponse
 from django.core.files.base import ContentFile
 from django.shortcuts import get_object_or_404
 
+from django.db.models import Sum
+from django.utils import timezone
+from datetime import timedelta
+
 from apps.core.data_engine import get_cached_dataframe
 from .models import Dataset, DatasetActivityLog
 from .serializers import DatasetSerializer, DatasetActivityLogSerializer
@@ -194,3 +198,120 @@ class DatasetViewSet(
         if page is not None:
             return self.get_paginated_response(DatasetActivityLogSerializer(page, many=True).data)
         return Response(DatasetActivityLogSerializer(logs, many=True).data)
+
+    @action(detail=False, methods=["get"])
+    def workspace_summary(self, request):
+        """
+        GET /datasets/workspace_summary/
+        Returns aggregate stats and recent activity for the main dashboard.
+        """
+        user = request.user
+        
+        # 1. Basic Stats
+        total_datasets = Dataset.objects.filter(user=user).count()
+        total_analyses = DatasetActivityLog.objects.filter(
+            user=user, 
+            action__in=["DIAGNOSE", "AI_ANALYSIS", "CAST", "RENAME_COLUMN", "DROP_DUPLICATES", "REPLACE_VALUES", "DROP_NULLS", "FILL_NULLS", "FILL_DERIVED", "TRANSFORM_COLUMN", "SCALE_COLUMNS", "EXTRACT_DATETIME", "ENCODE_COLUMNS"]
+        ).count()
+        
+        total_size_bytes = Dataset.objects.filter(user=user).aggregate(total=Sum("file_size"))["total"] or 0
+        
+        # Trends (last 7 days)
+        last_week = timezone.now() - timedelta(days=7)
+        datasets_this_week = Dataset.objects.filter(user=user, uploaded_date__gte=last_week).count()
+        analyses_today = DatasetActivityLog.objects.filter(user=user, timestamp__gte=timezone.now().replace(hour=0, minute=0, second=0)).count()
+
+        # 2. Recent Datasets (Last 5)
+        recent_datasets = Dataset.objects.filter(user=user).order_by("-updated_date")[:5]
+        
+        # 3. Recent Activity (Last 5)
+        recent_activity = DatasetActivityLog.objects.filter(user=user).order_by("-timestamp")[:5]
+
+        # 4. Storage Info (Plan limit is currently mocked as 120GB)
+        plan_limit_bytes = 120 * 1024 * 1024 * 1024
+        
+        # 5. Activity Chart Data (Last 7 days)
+        chart_days = []
+        analyses_trend = []
+        datasets_trend = []
+        
+        for i in range(6, -1, -1):
+            day = timezone.now().date() - timedelta(days=i)
+            chart_days.append(day.strftime("%a"))
+            
+            # Count analyses for this day
+            a_count = DatasetActivityLog.objects.filter(
+                user=user,
+                timestamp__date=day,
+                action__in=["DIAGNOSE", "AI_ANALYSIS", "CAST", "RENAME_COLUMN", "DROP_DUPLICATES", "REPLACE_VALUES", "DROP_NULLS", "FILL_NULLS", "FILL_DERIVED", "TRANSFORM_COLUMN", "SCALE_COLUMNS", "EXTRACT_DATETIME", "ENCODE_COLUMNS"]
+            ).count()
+            analyses_trend.append(a_count)
+            
+            # Count datasets uploaded for this day
+            d_count = Dataset.objects.filter(user=user, uploaded_date__date=day).count()
+            datasets_trend.append(d_count)
+
+        return Response({
+            "stats": {
+                "total_datasets": {
+                    "value": str(total_datasets),
+                    "trend": f"+{datasets_this_week} this week" if datasets_this_week > 0 else "No new files",
+                    "trend_up": datasets_this_week > 0
+                },
+                "total_analyses": {
+                    "value": str(total_analyses),
+                    "trend": f"+{analyses_today} today" if analyses_today > 0 else "Start analysis",
+                    "trend_up": analyses_today > 0
+                },
+                "total_insights": {
+                    "value": str(DatasetActivityLog.objects.filter(user=user, action="AI_ANALYSIS").count()),
+                    "trend": "Auto-detections",
+                    "trend_up": True
+                },
+                "storage_used": {
+                    "value": self._format_size(total_size_bytes),
+                    "label": "of 120 GB plan",
+                    "pct": round((total_size_bytes / plan_limit_bytes) * 100, 1) if plan_limit_bytes > 0 else 0,
+                    "trend_up": False
+                }
+            },
+            "recent_datasets": [
+                {
+                    "id": ds.id,
+                    "name": ds.file_name,
+                    "status": "ready", # Mocked for now
+                    "updated": self._format_time_ago(ds.updated_date)
+                } for ds in recent_datasets
+            ],
+            "activity_feed": [
+                {
+                    "action": log.action,
+                    "label": log.get_action_display(),
+                    "sub": f"{log.dataset_name_snap} · {log.timestamp.strftime('%H:%M')}",
+                    "time": self._format_time_ago(log.timestamp)
+                } for log in recent_activity
+            ],
+            "chart_data": {
+                "days": chart_days,
+                "analyses": analyses_trend,
+                "datasets": datasets_trend
+            }
+        })
+
+    def _format_size(self, size_bytes):
+        for unit in ("B", "KB", "MB", "GB", "TB"):
+            if size_bytes < 1024:
+                return f"{size_bytes:.1f} {unit}"
+            size_bytes /= 1024
+        return f"{size_bytes:.1f} PB"
+
+    def _format_time_ago(self, dt):
+        now = timezone.now()
+        diff = now - dt
+        if diff.days > 0:
+            return f"{diff.days}d ago"
+        if diff.seconds > 3600:
+            return f"{diff.seconds // 3600}h ago"
+        if diff.seconds > 60:
+            return f"{diff.seconds // 60}m ago"
+        return "Just now"
