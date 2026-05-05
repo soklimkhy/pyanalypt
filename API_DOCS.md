@@ -3696,7 +3696,7 @@ Returns all models trained by the authenticated user.
 ---
 
 ### 2. Train New Model
-Initiates a model training job. Training is performed synchronously and returns the model details upon completion.
+Initiates a model training job. Training is performed **asynchronously** in the background. The endpoint returns immediately with a `202 Accepted` status.
 
 - **Endpoint**: `POST /mlstudio/`
 - **Auth Required**: Yes
@@ -3706,14 +3706,14 @@ Initiates a model training job. Training is performed synchronously and returns 
   "name": "Revenue Forecast",
   "dataset": 23,
   "task_type": "regression",
-  "algorithm": "RandomForest",
+  "algorithm": "random_forest",
   "target_column": "Total_Price",
   "feature_columns": ["Drug_Name", "Quantity", "Region"],
   "hyperparameters": { "n_estimators": 100, "max_depth": 10 }
 }
 ```
 
-- **Response (201 Created)**: Full model object with metrics and feature importances.
+- **Response (202 Accepted)**: The initial model object with `status: "training"`. Use `GET /mlstudio/{id}/` to poll for completion.
 
 ---
 
@@ -3723,8 +3723,12 @@ Retrieve detailed metrics or use the model to make predictions on new data.
 - **Retrieve Detail**: `GET /mlstudio/{id}/`
 - **Delete Model**: `DELETE /mlstudio/{id}/`
 - **Run Prediction**: `POST /mlstudio/{id}/predict/`
-  - **Request Body**: `{ "data": [{ "Drug_Name": "Aspirin", "Quantity": 5, "Region": "North" }] }`
-  - **Response**: `{ "predictions": [125.50] }`
+  - **Real-time Prediction**: Pass raw data in the `data` field.
+    - **Request Body**: `{ "data": [{ "Drug_Name": "Aspirin", "Quantity": 5, "Region": "North" }] }`
+    - **Response**: `{ "predictions": [125.50] }`
+  - **Batch Prediction**: Pass a `dataset_id` to predict on an entire dataset.
+    - **Request Body**: `{ "dataset_id": 24 }`
+    - **Response**: Full summary object containing a list of `{"row_index": idx, "prediction": val}`.
 
 ---
 

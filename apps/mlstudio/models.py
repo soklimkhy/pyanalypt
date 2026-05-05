@@ -20,12 +20,12 @@ class MLModel(models.Model):
 
     STATUS_PENDING  = "pending"
     STATUS_TRAINING = "training"
-    STATUS_READY    = "ready"
+    STATUS_COMPLETED = "completed"
     STATUS_FAILED   = "failed"
     STATUS_CHOICES = [
         (STATUS_PENDING,  "Pending"),
         (STATUS_TRAINING, "Training"),
-        (STATUS_READY,    "Ready"),
+        (STATUS_COMPLETED, "Completed"),
         (STATUS_FAILED,   "Failed"),
     ]
 
@@ -76,4 +76,4 @@ class MLModel(models.Model):
 
     @property
     def is_ready(self):
-        return self.status == self.STATUS_READY
+        return self.status == self.STATUS_COMPLETED

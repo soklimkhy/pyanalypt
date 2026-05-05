@@ -1,6 +1,7 @@
 import logging
 import threading
 
+import pandas as pd
 from django.core.files.base import ContentFile
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status, viewsets
@@ -63,7 +64,7 @@ def _run_training(ml_model_id, df_clean):
         filename = f"{ml_model.pk}.joblib"
         ml_model.model_file.save(filename, ContentFile(result["model_bytes"]), save=False)
         
-        ml_model.status              = MLModel.STATUS_READY
+        ml_model.status              = MLModel.STATUS_COMPLETED
         ml_model.progress            = 100
         ml_model.metrics             = result["metrics"]
         ml_model.feature_importances = result["feature_importances"]
@@ -114,7 +115,7 @@ class MLModelViewSet(viewsets.ViewSet):
         s.is_valid(raise_exception=True)
         data = s.validated_data
 
-        dataset = get_object_or_404(Dataset, pk=data["dataset_id"], user=request.user)
+        dataset = get_object_or_404(Dataset, pk=data["dataset"], user=request.user)
 
         df, err = _load_df(dataset)
         if err:
@@ -152,7 +153,7 @@ class MLModelViewSet(viewsets.ViewSet):
             )
 
         # Validate & sanitize hyperparams
-        _, _, sanitized_hp = validate_hyperparams(data["algorithm"], data.get("hyperparams", {}))
+        _, _, sanitized_hp = validate_hyperparams(data["algorithm"], data.get("hyperparameters", {}))
 
         # Create model record (status=training)
         ml_model = MLModel.objects.create(
@@ -188,8 +189,8 @@ class MLModelViewSet(viewsets.ViewSet):
     def predict(self, request, pk=None):
         """
         POST /mlstudio/{id}/predict/
-        Body: { "dataset_id": <optional int> }
-        Returns predictions for every row in the dataset.
+        Body: { "dataset_id": <optional int>, "data": <optional list of dicts> }
+        Returns predictions for the provided data or the dataset.
         """
         ml_model = get_object_or_404(MLModel, pk=pk, user=request.user)
         if not ml_model.is_ready:
@@ -200,19 +201,9 @@ class MLModelViewSet(viewsets.ViewSet):
 
         s = PredictSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-        dataset_id = s.validated_data.get("dataset_id") or ml_model.dataset_id
-
-        dataset = get_object_or_404(Dataset, pk=dataset_id, user=request.user)
-        df, err = _load_df(dataset)
-        if err:
-            return err
-
-        missing = [c for c in ml_model.feature_columns if c not in df.columns]
-        if missing:
-            return Response(
-                {"detail": f"Dataset is missing feature columns: {missing}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        
+        realtime_data = s.validated_data.get("data")
+        dataset_id = s.validated_data.get("dataset_id")
 
         # Load model bytes
         try:
@@ -226,35 +217,72 @@ class MLModelViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        # Prepare df — drop nulls in feature columns only
-        df_pred = df[ml_model.feature_columns].dropna()
-        original_index = df_pred.index.tolist()
+        if realtime_data:
+            # Case 1: Real-time prediction
+            df_pred = pd.DataFrame(realtime_data)
+            missing = [c for c in ml_model.feature_columns if c not in df_pred.columns]
+            if missing:
+                return Response(
+                    {"detail": f"Input data is missing feature columns: {missing}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            # Filter and drop nulls
+            df_pred = df_pred[ml_model.feature_columns].dropna()
+            original_index = df_pred.index.tolist()
+            
+            try:
+                predictions = predict_with_model(model_bytes, df_pred, ml_model.feature_columns)
+                return Response({"predictions": predictions})
+            except Exception as exc:
+                logger.exception("Real-time prediction failed for MLModel %s", ml_model.pk)
+                return Response(
+                    {"detail": f"Prediction failed: {exc}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+        else:
+            # Case 2: Dataset/Batch prediction
+            target_dataset_id = dataset_id or ml_model.dataset_id
+            dataset = get_object_or_404(Dataset, pk=target_dataset_id, user=request.user)
+            df, err = _load_df(dataset)
+            if err:
+                return err
 
-        try:
-            predictions = predict_with_model(model_bytes, df_pred, ml_model.feature_columns)
-        except Exception as exc:
-            logger.exception("Prediction failed for MLModel %s", ml_model.pk)
-            return Response(
-                {"detail": f"Prediction failed: {exc}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            missing = [c for c in ml_model.feature_columns if c not in df.columns]
+            if missing:
+                return Response(
+                    {"detail": f"Dataset is missing feature columns: {missing}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        return Response({
-            "model_id":       ml_model.pk,
-            "model_name":     ml_model.name,
-            "dataset_id":     dataset.pk,
-            "task_type":      ml_model.task_type,
-            "algorithm":      ml_model.algorithm,
-            "feature_columns": ml_model.feature_columns,
-            "target_column":  ml_model.target_column,
-            "label_classes":  ml_model.label_classes,
-            "total_rows":     len(df),
-            "predicted_rows": len(predictions),
-            "predictions": [
-                {"row_index": idx, "prediction": pred}
-                for idx, pred in zip(original_index, predictions)
-            ],
-        })
+            # Prepare df — drop nulls in feature columns only
+            df_pred = df[ml_model.feature_columns].dropna()
+            original_index = df_pred.index.tolist()
+
+            try:
+                predictions = predict_with_model(model_bytes, df_pred, ml_model.feature_columns)
+            except Exception as exc:
+                logger.exception("Batch prediction failed for MLModel %s", ml_model.pk)
+                return Response(
+                    {"detail": f"Prediction failed: {exc}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+            return Response({
+                "model_id":       ml_model.pk,
+                "model_name":     ml_model.name,
+                "dataset_id":     dataset.pk,
+                "task_type":      ml_model.task_type,
+                "algorithm":      ml_model.algorithm,
+                "feature_columns": ml_model.feature_columns,
+                "target_column":  ml_model.target_column,
+                "label_classes":  ml_model.label_classes,
+                "total_rows":     len(df),
+                "predicted_rows": len(predictions),
+                "predictions": [
+                    {"row_index": idx, "prediction": pred}
+                    for idx, pred in zip(original_index, predictions)
+                ],
+            })
 
     @action(detail=False, methods=["get"], url_path="algorithms")
     def algorithms(self, request):

@@ -10,12 +10,12 @@ class TrainModelSerializer(serializers.Serializer):
 
     name            = serializers.CharField(max_length=200)
     description     = serializers.CharField(required=False, allow_blank=True, default="")
-    dataset_id      = serializers.IntegerField()
+    dataset         = serializers.IntegerField()
     task_type       = serializers.ChoiceField(choices=list(TASK_TYPES))
     algorithm       = serializers.CharField()
     feature_columns = serializers.ListField(child=serializers.CharField(), allow_empty=False)
     target_column   = serializers.CharField(required=False, allow_blank=True, default="")
-    hyperparams     = serializers.DictField(required=False, default=dict)
+    hyperparameters = serializers.DictField(required=False, default=dict)
     test_size       = serializers.FloatField(min_value=0.05, max_value=0.5, default=0.2)
 
     def validate(self, data):
@@ -33,9 +33,9 @@ class TrainModelSerializer(serializers.Serializer):
                 {"target_column": "Required for regression and classification tasks."}
             )
 
-        ok, err, _ = validate_hyperparams(algorithm, data.get("hyperparams", {}))
+        ok, err, _ = validate_hyperparams(algorithm, data.get("hyperparameters", {}))
         if not ok:
-            raise serializers.ValidationError({"hyperparams": err})
+            raise serializers.ValidationError({"hyperparameters": err})
 
         allowed = list(HYPERPARAMS_SCHEMA.get(algorithm, {}).keys())
         if allowed:
@@ -50,10 +50,17 @@ class PredictSerializer(serializers.Serializer):
         required=False,
         help_text="Dataset to run predictions on. Defaults to the training dataset.",
     )
+    data = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        help_text="List of objects containing feature values for real-time prediction.",
+    )
 
 
 class MLModelSerializer(serializers.ModelSerializer):
     dataset_name = serializers.CharField(source="dataset.file_name", read_only=True)
+    hyperparameters = serializers.JSONField(source="hyperparams")
+    feature_importance = serializers.JSONField(source="feature_importances", read_only=True)
     allowed_hyperparams = serializers.SerializerMethodField()
 
     class Meta:
@@ -63,16 +70,16 @@ class MLModelSerializer(serializers.ModelSerializer):
             "dataset", "dataset_name",
             "task_type", "algorithm",
             "feature_columns", "target_column",
-            "hyperparams", "test_size",
+            "hyperparameters", "test_size",
             "status", "progress", "error_message",
-            "metrics", "feature_importances", "label_classes",
+            "metrics", "feature_importance", "label_classes",
             "train_samples", "test_samples", "training_time_seconds",
             "allowed_hyperparams",
             "created_at", "updated_at",
         ]
         read_only_fields = [
             "id", "status", "progress", "error_message",
-            "metrics", "feature_importances", "label_classes",
+            "metrics", "feature_importance", "label_classes",
             "train_samples", "test_samples", "training_time_seconds",
             "created_at", "updated_at", "dataset_name",
         ]
