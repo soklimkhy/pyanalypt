@@ -40,13 +40,7 @@ class CreateDatasetView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         instance = serializer.save(user=self.request.user)
-        DatasetActivityLog.objects.create(
-            user=self.request.user,
-            dataset=instance,
-            dataset_name_snap=instance.file_name,
-            action="UPLOAD",
-            details={"format": instance.file_format, "size": instance.file_size},
-        )
+        self._log_activity(instance, "UPLOAD", {"format": instance.file_format, "size": instance.file_size})
 
 
 class DatasetViewSet(
@@ -74,10 +68,15 @@ class DatasetViewSet(
         return Dataset.objects.filter(user=self.request.user).select_related("user")
 
     def _log_activity(self, dataset, action, details=None):
+        if dataset:
+            dataset_name_snap = dataset.file_name
+        else:
+            dataset_name_snap = "N/A"
+        
         DatasetActivityLog.objects.create(
             user=self.request.user,
             dataset=dataset,
-            dataset_name_snap=dataset.file_name if dataset else "N/A",
+            dataset_name_snap=dataset_name_snap,
             action=action,
             details=details or {},
         )
