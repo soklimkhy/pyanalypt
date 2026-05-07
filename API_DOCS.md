@@ -3430,6 +3430,106 @@ Remove a single question from the goal. The goal itself is not affected.
 
 ---
 
+### 10. Generate Questions from Dataset (Framing)
+
+Analyzes the dataset's columns and numeric statistics, then calls the local Ollama model to generate **exactly 10 analytical questions**. Creates a fresh `AnalysisGoal` and returns it with the questions as JSON (not streaming). This is the entry point for the `/framing` workflow.
+
+- **Endpoint**: `POST /goals/generate/`
+- **Auth Required**: Yes
+- **Request Body**:
+
+| Field | Required | Description |
+|---|---|---|
+| `dataset_id` | Yes | ID of the dataset to analyze (must belong to the authenticated user) |
+
+```json
+{ "dataset_id": 23 }
+```
+
+- **Response (201 Created)**:
+```json
+{
+  "goal_id": 7,
+  "questions": [
+    { "id": 31, "order": 0, "question": "Which region had the highest revenue growth?", "source": "ai", "created_at": "2026-05-07T10:00:00Z" },
+    { "id": 32, "order": 1, "question": "What is the month-over-month sales trend?",    "source": "ai", "created_at": "2026-05-07T10:00:00Z" },
+    "..."
+  ]
+}
+```
+
+- **Response (400)**: `dataset_id` missing.
+- **Response (404)**: Dataset not found or belongs to another user.
+- **Response (503)**: Ollama service unavailable or generation failed.
+
+> Each call always creates a new goal — previous goals for the same dataset are not affected.
+
+---
+
+### 11. Regenerate Questions
+
+Deletes **all existing questions** from the given goal and generates 10 fresh ones using the same dataset. Use this when the user wants a completely new set of suggestions after reviewing the first batch.
+
+- **Endpoint**: `POST /goals/{id}/regenerate/`
+- **Auth Required**: Yes
+- **Request Body**: *(empty)*
+- **Response (200 OK)**:
+```json
+{
+  "goal_id": 7,
+  "questions": [
+    { "id": 41, "order": 0, "question": "How does customer age correlate with purchase value?", "source": "ai", "created_at": "2026-05-07T10:05:00Z" },
+    "..."
+  ]
+}
+```
+
+- **Response (404)**: Goal not found.
+- **Response (503)**: Ollama service unavailable.
+
+> Previously saved questions (if `save/` was already called) are already deleted from the goal — regenerate is intended for use before saving.
+
+---
+
+### 12. Save Selected Questions & Create Report
+
+Keeps only the questions whose IDs are in `selected_ids`, deletes the rest, re-numbers order, and **auto-creates a Report** linked to this goal and dataset. This is the final step of the `/framing` workflow.
+
+- **Endpoint**: `POST /goals/{id}/save/`
+- **Auth Required**: Yes
+- **Request Body**:
+
+| Field | Required | Description |
+|---|---|---|
+| `selected_ids` | Yes | Non-empty list of `AnalysisQuestion` IDs to keep |
+
+```json
+{ "selected_ids": [31, 33, 36] }
+```
+
+- **Response (201 Created)**:
+```json
+{
+  "saved_questions": [
+    { "id": 31, "order": 0, "question": "Which region had the highest revenue growth?", "source": "ai", "created_at": "2026-05-07T10:00:00Z" },
+    { "id": 33, "order": 1, "question": "What product category drives the most profit?",  "source": "ai", "created_at": "2026-05-07T10:00:00Z" },
+    { "id": 36, "order": 2, "question": "Is there a seasonal pattern in monthly sales?",  "source": "ai", "created_at": "2026-05-07T10:00:00Z" }
+  ],
+  "report": {
+    "id": 5,
+    "title": "Analysis of sales_data.csv",
+    "created_at": "2026-05-07T10:06:00Z"
+  }
+}
+```
+
+- **Response (400)**: `selected_ids` empty, not a list, not integers, or contains IDs that don't belong to this goal.
+- **Response (404)**: Goal not found.
+
+> The auto-created report has `title = "Analysis of <dataset filename>"`, is blank (no items), and is linked to both the dataset and this goal. The user can then open it in `/reports` and add charts.
+
+---
+
 ## 📝 Reports & Insights
 
 The Reports module lets analysts **save chart snapshots with written insights** and **export the result as a PDF**. A report is a named document tied to a dataset. Each report contains ordered items — each item holds a chart image (PNG captured from ECharts), the chart params used to generate it, and a free-text annotation.

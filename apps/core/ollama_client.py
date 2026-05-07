@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 import ollama
 import pandas as pd
@@ -77,6 +78,14 @@ def stream_suggest_questions(columns, problem_statement=""):
     client = OllamaClient()
     system_prompt, prompt = _build_suggest_prompt(columns, problem_statement)
     yield from _sse_stream(client, prompt, system_prompt)
+
+
+def generate_questions(columns, n=10, sample_stats=None):
+    """Generate n analytical questions synchronously. Returns a list of question strings."""
+    client = OllamaClient()
+    system_prompt, prompt = _build_generate_questions_prompt(columns, n, sample_stats)
+    raw = client.generate_response(prompt, system_prompt=system_prompt)
+    return _parse_questions(raw)
 
 
 def stream_interpret_eda(eda_type, data, columns=None):
@@ -192,6 +201,33 @@ def _build_suggest_prompt(columns, problem_statement=""):
         prompt += f"Problem context: {problem_statement}\n"
     prompt += "\nGenerate analytical questions for this dataset."
     return system_prompt, prompt
+
+
+def _build_generate_questions_prompt(columns, n=10, sample_stats=None):
+    example = "\n".join(f"Q{i}: [question]" for i in range(1, 4))
+    system_prompt = (
+        f"You are an expert data analyst. Generate exactly {n} analytical questions for a dataset.\n"
+        f"Output ONLY the questions, one per line, in this exact format:\n"
+        f"{example}\n"
+        f"...\n"
+        f"Q{n}: [question]\n"
+        "No introductions, no explanations, no extra text — just the numbered questions."
+    )
+    prompt = f"Dataset columns: {', '.join(columns)}\n"
+    if sample_stats:
+        prompt += f"Numeric summary (mean | std):\n{json.dumps(sample_stats, indent=2)}\n"
+    prompt += f"\nGenerate {n} insightful analytical questions about this dataset."
+    return system_prompt, prompt
+
+
+def _parse_questions(text):
+    """Extract question strings from a Qn: formatted Ollama response."""
+    questions = []
+    for line in text.splitlines():
+        m = re.match(r"^Q\d+[\.:]\s*(.+)", line.strip())
+        if m:
+            questions.append(m.group(1).strip())
+    return questions
 
 
 def _build_prompt(columns, sample_stats):
