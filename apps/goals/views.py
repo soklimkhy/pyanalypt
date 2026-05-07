@@ -279,3 +279,23 @@ class AnalysisQuestionViewSet(viewsets.ViewSet):
             raise NotFound("Question not found.")
         question.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def bulk_destroy(self, request, goal_pk=None):
+        """DELETE /api/v1/goals/{goal_pk}/questions/bulk-delete/"""
+        goal = self._get_goal(request, goal_pk)
+
+        ids_raw = request.data.get("ids", [])
+        if not isinstance(ids_raw, list) or not ids_raw:
+            return Response({"detail": "ids must be a non-empty list."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            ids = [int(i) for i in ids_raw]
+        except (ValueError, TypeError):
+            return Response({"detail": "ids must be a list of integers."}, status=status.HTTP_400_BAD_REQUEST)
+
+        valid_qs = AnalysisQuestion.objects.filter(pk__in=ids, goal=goal)
+        if valid_qs.count() != len(set(ids)):
+            return Response({"detail": "One or more question IDs are invalid."}, status=status.HTTP_400_BAD_REQUEST)
+
+        deleted_count, _ = valid_qs.delete()
+        return Response({"deleted": deleted_count}, status=status.HTTP_200_OK)

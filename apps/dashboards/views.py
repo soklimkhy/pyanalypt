@@ -191,7 +191,10 @@ class DashboardWidgetViewSet(viewsets.ViewSet):
         dashboard = self._get_dashboard(dashboard_id, request.user)
 
         s = AddWidgetSerializer(data=request.data)
-        s.is_valid(raise_exception=True)
+        if not s.is_valid():
+            logger.error("AddWidget validation failed — data=%s errors=%s", request.data, s.errors)
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError(s.errors)
         d = s.validated_data
 
         widget = DashboardWidget(

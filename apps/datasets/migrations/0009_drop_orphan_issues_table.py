@@ -1,6 +1,12 @@
 from django.db import migrations
 
 
+def drop_orphan_table(apps, schema_editor):
+    # CASCADE is PostgreSQL-specific; the table never exists on SQLite/other backends.
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute("DROP TABLE IF EXISTS issues_issue CASCADE;")
+
+
 class Migration(migrations.Migration):
     """
     Drop the orphan `issues_issue` table left behind by a removed app.
@@ -12,8 +18,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql="DROP TABLE IF EXISTS issues_issue CASCADE;",
-            reverse_sql=migrations.RunSQL.noop,
-        ),
+        migrations.RunPython(drop_orphan_table, migrations.RunPython.noop),
     ]

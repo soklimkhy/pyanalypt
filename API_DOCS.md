@@ -3430,6 +3430,32 @@ Remove a single question from the goal. The goal itself is not affected.
 
 ---
 
+### 9.5. Bulk Delete Questions
+
+Remove multiple questions from a goal in a single request. All provided IDs must belong to the specified goal.
+
+- **Endpoint**: `DELETE /goals/{goal_id}/questions/bulk-delete/`
+- **Auth Required**: Yes
+- **Request Body**:
+
+| Field | Required | Description |
+|---|---|---|
+| `ids` | Yes | Non-empty list of question IDs to delete (all must belong to this goal) |
+
+```json
+{ "ids": [31, 32, 35] }
+```
+
+- **Response (200 OK)**:
+```json
+{ "deleted": 3 }
+```
+
+- **Response (400)**: `ids` is missing, empty, not a list, or contains IDs that don't belong to this goal.
+- **Response (404)**: Goal not found or belongs to another user.
+
+---
+
 ### 10. Generate Questions from Dataset (Framing)
 
 Analyzes the dataset's columns and numeric statistics, then calls the local Ollama model to generate **exactly 10 analytical questions**. Creates a fresh `AnalysisGoal` and returns it with the questions as JSON (not streaming). This is the entry point for the `/framing` workflow.
@@ -3869,8 +3895,11 @@ Build custom interactive dashboards by arranging widgets in a 12-column grid lay
 **Base path**: `/api/v1/dashboards/`
 
 ### 1. Dashboard Management
-- **Create Dashboard**: `POST /dashboards/` (Body: `{ "title": "Sales Performance", "description": "Weekly overview" }`)
+- **List Dashboards**: `GET /dashboards/` (Optional filter: `?dataset_id=<id>`)
+- **Create Dashboard**: `POST /dashboards/` (Body: `{ "dataset_id": 23, "title": "Sales Performance", "description": "Weekly overview" }`)
 - **Retrieve Dashboard**: `GET /dashboards/{id}/` (Returns full layout + widget data)
+- **Update Dashboard**: `PATCH /dashboards/{id}/` (Body: `{ "title": "New Title", "description": "..." }`)
+- **Delete Dashboard**: `DELETE /dashboards/{id}/`
 - **Refresh Dashboard**: `POST /dashboards/{id}/refresh/` (Re-calculates all widgets)
 
 ---
@@ -3883,10 +3912,9 @@ Widgets are attached to a dashboard and store their own chart parameters and gri
   ```json
   {
     "title": "Monthly Revenue",
-    "widget_type": "bar",
-    "dataset": 23,
+    "chart_type": "bar",
     "chart_params": { "x_col": "Month", "y_col": "Revenue", "agg": "sum" },
-    "grid_x": 0, "grid_y": 0, "grid_w": 6, "grid_h": 4
+    "grid_col": 0, "grid_row": 0, "grid_width": 6, "grid_height": 4
   }
   ```
 - **Update Layout/Params**: `PATCH /dashboards/{id}/widgets/{wid}/`
