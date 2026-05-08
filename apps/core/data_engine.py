@@ -303,6 +303,8 @@ def _apply_fill(series, strategy, value=None):
         if not pd.api.types.is_numeric_dtype(series):
             return None
         fill_val = series.mean() if strategy == "mean" else series.median()
+        if pd.api.types.is_integer_dtype(series.dtype):
+            fill_val = round(fill_val)
         return series.fillna(fill_val)
     if strategy == "mode":
         mode_vals = series.mode()
@@ -380,6 +382,8 @@ def fill_derived(df, target, formula, operand_a, operand_b):
     if cells_filled > 0:
         if pd.api.types.is_integer_dtype(df[target].dtype):
             result = result.round().astype("Int64")
+        elif pd.api.types.is_float_dtype(result):
+            result = result.round(10)
         df.loc[mask, target] = result
 
     return df, cells_filled
@@ -693,13 +697,16 @@ def add_column(df, new_name, formula, operand_a, operand_b):
     Returns the modified df.
     """
     if formula == "divide":
-        df[new_name] = df[operand_a] / df[operand_b].replace(0, np.nan)
+        result = df[operand_a] / df[operand_b].replace(0, np.nan)
     elif formula == "multiply":
-        df[new_name] = df[operand_a] * df[operand_b]
+        result = df[operand_a] * df[operand_b]
     elif formula == "add":
-        df[new_name] = df[operand_a] + df[operand_b]
+        result = df[operand_a] + df[operand_b]
     else:  # subtract
-        df[new_name] = df[operand_a] - df[operand_b]
+        result = df[operand_a] - df[operand_b]
+    if pd.api.types.is_float_dtype(result):
+        result = result.round(10)
+    df[new_name] = result
     return df
 
 
@@ -1017,8 +1024,10 @@ def eda_crosstab(df, col_a, col_b, normalize=False):
             **{str(c): (round(float(v), 4) if normalize else int(v)) for c, v in zip(col_vals, row)},
         })
     return {
-        col_a: index_vals,
-        col_b: col_vals,
+        "col_a": col_a,
+        "col_b": col_b,
+        "index_vals": index_vals,
+        "col_vals": col_vals,
         "normalize": normalize,
         "table": table,
     }

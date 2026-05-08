@@ -29,7 +29,27 @@ class StandardPagination(PageNumberPagination):
     max_page_size = 100
 
 
-class CreateDatasetView(generics.CreateAPIView):
+class DatasetActivityMixin:
+    """
+    Mixin to provide activity logging for datasets.
+    """
+
+    def _log_activity(self, dataset, action, details=None):
+        if dataset:
+            dataset_name_snap = dataset.file_name
+        else:
+            dataset_name_snap = "N/A"
+
+        DatasetActivityLog.objects.create(
+            user=self.request.user,
+            dataset=dataset,
+            dataset_name_snap=dataset_name_snap,
+            action=action,
+            details=details or {},
+        )
+
+
+class CreateDatasetView(DatasetActivityMixin, generics.CreateAPIView):
     """
     POST /datasets/upload/
     Handle file uploads (Drag and Drop / File Input).
@@ -47,6 +67,7 @@ class DatasetViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.DestroyModelMixin,
+    DatasetActivityMixin,
     viewsets.GenericViewSet,
 ):
     """
@@ -66,20 +87,6 @@ class DatasetViewSet(
 
     def get_queryset(self):
         return Dataset.objects.filter(user=self.request.user).select_related("user")
-
-    def _log_activity(self, dataset, action, details=None):
-        if dataset:
-            dataset_name_snap = dataset.file_name
-        else:
-            dataset_name_snap = "N/A"
-        
-        DatasetActivityLog.objects.create(
-            user=self.request.user,
-            dataset=dataset,
-            dataset_name_snap=dataset_name_snap,
-            action=action,
-            details=details or {},
-        )
 
     @action(detail=True, methods=["patch"])
     def rename(self, request, pk=None):

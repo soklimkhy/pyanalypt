@@ -73,11 +73,13 @@ class AnalysisGoalViewSet(viewsets.ModelViewSet):
                     if cleaned:
                         parsed.append(cleaned)
 
-                current_count = goal.questions.count()
+                # Replace previous AI suggestions; manual questions are preserved.
+                goal.questions.filter(source="ai").delete()
+                manual_count = goal.questions.count()
                 AnalysisQuestion.objects.bulk_create([
                     AnalysisQuestion(
                         goal=goal,
-                        order=current_count + i,
+                        order=manual_count + i,
                         question=q,
                         source="ai",
                     )

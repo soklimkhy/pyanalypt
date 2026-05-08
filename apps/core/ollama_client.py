@@ -194,7 +194,8 @@ def _build_suggest_prompt(columns, problem_statement=""):
         "You are an expert data analyst. Generate analytical questions for a dataset. "
         "Output ONLY the questions, one per line, in this exact format:\n"
         "Q1: [question]\nQ2: [question]\nQ3: [question]\n"
-        "Generate between 3 and 5 questions. No other text, no explanations."
+        "Generate between 3 and 5 questions. Each question must be unique and distinct — "
+        "do not repeat or paraphrase the same question. No other text, no explanations."
     )
     prompt = f"Dataset columns: {', '.join(columns)}\n"
     if problem_statement:
@@ -211,6 +212,7 @@ def _build_generate_questions_prompt(columns, n=10, sample_stats=None):
         f"{example}\n"
         f"...\n"
         f"Q{n}: [question]\n"
+        "Each question must be unique and distinct — do not repeat or paraphrase the same question. "
         "No introductions, no explanations, no extra text — just the numbered questions."
     )
     prompt = f"Dataset columns: {', '.join(columns)}\n"
@@ -221,12 +223,17 @@ def _build_generate_questions_prompt(columns, n=10, sample_stats=None):
 
 
 def _parse_questions(text):
-    """Extract question strings from a Qn: formatted Ollama response."""
+    """Extract question strings from a Qn: formatted Ollama response, deduplicating."""
     questions = []
+    seen = set()
     for line in text.splitlines():
         m = re.match(r"^Q\d+[\.:]\s*(.+)", line.strip())
         if m:
-            questions.append(m.group(1).strip())
+            q = m.group(1).strip()
+            key = q.lower()
+            if key not in seen:
+                seen.add(key)
+                questions.append(q)
     return questions
 
 
