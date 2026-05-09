@@ -31,6 +31,9 @@ class DashboardSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "dataset_name", "share_token", "widget_count", "created_at", "updated_at"]
 
+    def get_widget_count(self, obj):
+        return obj.widgets.count()
+
 
 class CreateDashboardSerializer(serializers.Serializer):
     dataset_id  = serializers.IntegerField()
