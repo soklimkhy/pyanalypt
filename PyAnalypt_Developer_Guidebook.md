@@ -160,6 +160,26 @@ PyAnalypt uses Ollama to run local models for data diagnostics.
 
 ---
 
+## 🐳 Docker Deployment (Fast Track)
+
+For developers who want to skip the manual environment setup, we provide pre-built Docker images for both the backend and frontend.
+
+### 1. Pull the Images
+```bash
+# Backend (Django)
+docker pull limkhysok/pyanalypt:latest
+
+# Frontend (Next.js)
+docker pull limkhysok/pyanalypt-frontend:latest
+```
+
+### 2. Docker Repositories
+- **Backend**: [limkhysok/pyanalypt](https://hub.docker.com/repository/docker/limkhysok/pyanalypt/general)
+- **Frontend**: [limkhysok/pyanalypt-frontend](https://hub.docker.com/repository/docker/limkhysok/pyanalypt-frontend/general)
+
+### 3. Simplified Launch
+Create a `docker-compose.yml` in your root and run `docker compose up -d`. This will orchestrate the Backend, Frontend, PostgreSQL, and Redis automatically.
+
 ---
 
 ## 🧪 Developer Usage & Testing

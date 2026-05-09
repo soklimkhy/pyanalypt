@@ -84,7 +84,26 @@ Before running locally, make sure you have the following installed:
 
 ---
 
-## 🚀 Quick Start (Local)
+## 🐳 Quick Start with Docker Hub
+
+If you want to try PyAnalypt without setting up a development environment or cloning the source code, you can pull the official pre-built images from Docker Hub.
+
+**1. Pull the Images**
+```bash
+# Backend (Django)
+docker pull limkhysok/pyanalypt:latest
+
+# Frontend (Next.js)
+docker pull limkhysok/pyanalypt-frontend:latest
+```
+
+**2. Repository Links**
+- **Backend Repo**: [limkhysok/pyanalypt](https://hub.docker.com/repository/docker/limkhysok/pyanalypt/general)
+- **Frontend Repo**: [limkhysok/pyanalypt-frontend](https://hub.docker.com/repository/docker/limkhysok/pyanalypt-frontend/general)
+
+---
+
+## 🚀 Quick Start (Local Development)
 
 **1. Clone the repository**
 
@@ -153,48 +172,56 @@ The Django admin panel is at `http://localhost:8000/admin/`
 
 ---
 
-## 🐳 Running with Docker
+## 🐳 Running with Docker Compose
 
-The easiest way to run the full stack (Django + PostgreSQL + Redis) with a single command.
+The easiest way to run the full stack (Backend + Frontend + DB + Redis) using the pre-built Docker Hub images.
 
-**1. Clone the repository**
+**1. Create a `docker-compose.yml`**
+
+Create a file named `docker-compose.yml` and paste:
+
+```yaml
+services:
+  backend:
+    image: limkhysok/pyanalypt:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=True
+      - SECRET_KEY=your-secret-key
+      - DATABASE_URL=postgres://postgres:password@db:5432/pyanalyptdb
+    depends_on:
+      - db
+      - redis
+
+  frontend:
+    image: limkhysok/pyanalypt-frontend:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1/
+
+  db:
+    image: postgres:16
+    environment:
+      - POSTGRES_DB=pyanalyptdb
+      - POSTGRES_PASSWORD=password
+
+  redis:
+    image: redis:7
+```
+
+**2. Start all services**
 
 ```bash
-git clone https://github.com/limkhysok/pyanalypt.git
-cd pyanalypt
+docker compose up -d
 ```
 
-**2. Set required environment variables**
-
-Create a `.env` file with at minimum:
-
-```env
-SECRET_KEY=your-secret-key-here
-POSTGRES_PASSWORD=your-db-password
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_REDIRECT_URI=http://localhost:8000/api/auth/google/callback
-```
-
-**3. Start all services**
+**3. Initial Setup**
 
 ```bash
-docker compose up --build
-```
-
-Docker will start three containers: `web` (Django), `db` (PostgreSQL), and `redis`. Wait until you see:
-
-```
-Starting development server at http://0.0.0.0:8000/
-```
-
-**4. Run migrations (first time only)**
-
-In a second terminal:
-
-```bash
-docker compose exec web python manage.py migrate
-docker compose exec web python manage.py createsuperuser
+docker compose exec backend python manage.py migrate
+docker compose exec backend python manage.py createsuperuser
 ```
 
 **Stop all services**

@@ -24,11 +24,21 @@ def fmt_bar(df, x_col, y_col, agg="sum", group_by=None, limit=20):
     """
     if group_by:
         pivot = df.groupby([x_col, group_by])[y_col].agg(agg).unstack(fill_value=0)
-        top_x = pivot.sum(axis=1).abs().nlargest(limit).index
+        try:
+            # Try to find top X by magnitude
+            top_x = pivot.sum(axis=1).astype(float).abs().nlargest(limit).index
+        except (ValueError, TypeError):
+            top_x = pivot.index[:limit]
+            
         pivot = pivot.loc[pivot.index.isin(top_x)].reindex(top_x)
-        # Limit groups to prevent ECharts series explosion
-        top_groups = pivot.abs().sum(axis=0).nlargest(_MAX_GROUPS).index
-        pivot = pivot[top_groups]
+        
+        try:
+            # Limit groups to prevent ECharts series explosion
+            top_groups = pivot.astype(float).abs().sum(axis=0).nlargest(_MAX_GROUPS).index
+            pivot = pivot[top_groups]
+        except (ValueError, TypeError, KeyError):
+            pass
+
         x_data = [str(v) for v in pivot.index.tolist()]
         series = [
             {
@@ -40,7 +50,11 @@ def fmt_bar(df, x_col, y_col, agg="sum", group_by=None, limit=20):
         ]
     else:
         grouped = df.groupby(x_col)[y_col].agg(agg)
-        top_x = grouped.abs().nlargest(limit).index
+        try:
+            top_x = grouped.astype(float).abs().nlargest(limit).index
+        except (ValueError, TypeError):
+            top_x = grouped.index[:limit]
+            
         grouped = grouped.reindex(top_x)
         x_data = [str(v) for v in grouped.index.tolist()]
         series = [
