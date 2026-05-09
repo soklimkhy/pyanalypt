@@ -1,4 +1,5 @@
 Django
+gunicorn
 djangorestframework
 pandas
 scikit-learn
@@ -17,3 +18,7 @@ dj-rest-auth
 django-allauth
 requests
 cryptography
+pyotp
+user-agents
+Pillow
+reportlab

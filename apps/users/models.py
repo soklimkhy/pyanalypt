@@ -1,11 +1,53 @@
+import base64
+import hashlib
+
+from cryptography.fernet import Fernet, InvalidToken
+
+from django.conf import settings
 from django.db import models
-from django.core.validators import (
-    RegexValidator,
-    MinLengthValidator,
-    MaxLengthValidator,
-)
-from django.utils import timezone
+from django.core.validators import RegexValidator, MinLengthValidator
 from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.utils import timezone
+
+from .utils import validate_birthday_not_future
+
+
+def _fernet() -> Fernet:
+    key = base64.urlsafe_b64encode(hashlib.sha256(settings.SECRET_KEY.encode()).digest())
+    return Fernet(key)
+
+
+def _encrypt_secret(value: str) -> str:
+    if not value:
+        return value
+    try:
+        _fernet().decrypt(value.encode())
+        return value  # already encrypted
+    except (InvalidToken, Exception):
+        return _fernet().encrypt(value.encode()).decode()
+
+
+def _decrypt_secret(value: str) -> str:
+    if not value:
+        return value
+    try:
+        return _fernet().decrypt(value.encode()).decode()
+    except (InvalidToken, Exception):
+        return value  # graceful fallback for legacy plaintext values
+
+
+class EncryptedCharField(models.CharField):
+    """CharField that transparently encrypts on write and decrypts on read."""
+
+    def from_db_value(self, value, expression, connection):
+        return _decrypt_secret(value)
+
+    def get_prep_value(self, value):
+        return _encrypt_secret(super().get_prep_value(value))
+
+    def to_python(self, value):
+        return _decrypt_secret(value) if value else value
+
 
 class AuthUserManager(BaseUserManager):
     """
@@ -38,34 +80,6 @@ class AuthUserManager(BaseUserManager):
 class AuthUser(AbstractUser):
     objects = AuthUserManager()
 
-    first_name = models.CharField(
-        max_length=150,
-        blank=True,
-        validators=[
-            RegexValidator(
-                regex=r"^[a-zA-ZÀ-ÿ'\- ]+$",
-                message="First name can only contain letters, hyphens, apostrophes, and spaces.",
-            ),
-            MinLengthValidator(
-                2, message="First name must be at least 2 characters long."
-            ),
-        ],
-    )
-
-    last_name = models.CharField(
-        max_length=150,
-        blank=True,
-        validators=[
-            RegexValidator(
-                regex=r"^[a-zA-ZÀ-ÿ'\- ]+$",
-                message="Last name can only contain letters, hyphens, apostrophes, and spaces.",
-            ),
-            MinLengthValidator(
-                2, message="Last name must be at least 2 characters long."
-            ),
-        ],
-    )
-
     username = models.CharField(
         max_length=150,
         unique=True,
@@ -76,9 +90,7 @@ class AuthUser(AbstractUser):
                 regex=r"^[a-zA-Z0-9._-]+$",
                 message="Username can only contain letters, numbers, dots, underscores, and hyphens.",
             ),
-            MinLengthValidator(
-                3, message="Username must be at least 3 characters long."
-            ),
+            MinLengthValidator(3, message="Username must be at least 3 characters long."),
         ],
     )
 
@@ -87,13 +99,10 @@ class AuthUser(AbstractUser):
         blank=True,
         validators=[
             RegexValidator(
-                regex=r"^[a-zA-ZÀ-ÿ ]+$",
-                message="Full name can only contain letters and spaces.",
+                regex=r"^[a-zA-ZÀ-ÿ'\- ]+$",
+                message="Only letters, hyphens, apostrophes, and spaces are allowed.",
             ),
-            MinLengthValidator(
-                2, message="Full name must be at least 2 characters long."
-            ),
-            MaxLengthValidator(255),
+            MinLengthValidator(2, message="Full name must be at least 2 characters long."),
         ],
     )
 
@@ -102,12 +111,7 @@ class AuthUser(AbstractUser):
         max_length=254,
         null=False,
         blank=False,
-        validators=[
-            RegexValidator(
-                regex=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
-                message="Enter a valid email address.",
-            ),
-        ],
+        help_text="Primary email address for the user.",
     )
 
     email_verified = models.BooleanField(
@@ -115,47 +119,26 @@ class AuthUser(AbstractUser):
         help_text="Indicates whether the user's email has been verified.",
     )
 
-    is_superuser = models.BooleanField(
-        default=False,
-        help_text="Designates that this user has all permissions without explicitly assigning them.",
-    )
-
-    is_staff = models.BooleanField(
-        default=False,
-        help_text="Designates whether the user can log into the admin site.",
-    )
-
-    is_active = models.BooleanField(
-        default=True,
-        help_text="Designates whether this user account should be treated as active. Unselect this instead of deleting accounts.",
-    )
-
-    date_joined = models.DateTimeField(
-        default=timezone.now,
-        help_text="Date and time when the user account was created.",
-    )
-
-    last_login = models.DateTimeField(
+    profile_picture = models.ImageField(
+        upload_to="profile_pics/",
         null=True,
         blank=True,
-        help_text="Date and time of the user's last successful login.",
+        help_text="User's profile picture (auto-cropped to 1:1).",
     )
 
-    profile_picture = models.URLField(
-        max_length=1024,
+    # ── Two-Factor Authentication ────────────────────────────────────────────
+    totp_secret = EncryptedCharField(max_length=256, blank=True, default="")
+    totp_enabled = models.BooleanField(default=False)
+
+    birthday = models.DateField(
         null=True,
         blank=True,
-        validators=[
-            RegexValidator(
-                regex=r"^https://.*",
-                message="Profile picture URL must use HTTPS protocol for security.",
-            ),
-        ],
-        help_text="URL to the user's profile picture (typically from Google OAuth or uploaded to CDN).",
+        validators=[validate_birthday_not_future],
+        help_text="User's date of birth.",
     )
 
     USERNAME_FIELD = "username"
-    REQUIRED_FIELDS = []
+    REQUIRED_FIELDS = ["email"]
 
     class Meta:
         managed = True
@@ -170,17 +153,93 @@ class AuthUser(AbstractUser):
     def save(self, *args, **kwargs):
         if self.email:
             self.email = self.email.lower()
-
-        if not self.full_name and self.first_name and self.last_name:
-            self.full_name = f"{self.first_name} {self.last_name}"
-
+        
         super().save(*args, **kwargs)
+
+        # Image processing: Square cropping (1:1)
+        if self.profile_picture:
+            from PIL import Image
+            import os
+
+            img_path = self.profile_picture.path
+            if os.path.exists(img_path):
+                img = Image.open(img_path)
+                
+                # If image is not square, crop it
+                width, height = img.size
+                if width != height:
+                    min_dim = min(width, height)
+                    left = (width - min_dim) / 2
+                    top = (height - min_dim) / 2
+                    right = (width + min_dim) / 2
+                    bottom = (height + min_dim) / 2
+                    
+                    img = img.crop((left, top, right, bottom))
+                    
+                    # Resize to a reasonable standard (e.g. 512x512)
+                    img.thumbnail((512, 512), Image.LANCZOS)
+                    img.save(img_path)
 
     @property
     def display_name(self):
         """Returns the user's preferred display name."""
-        if self.full_name:
-            return self.full_name
-        if self.first_name and self.last_name:
-            return f"{self.first_name} {self.last_name}"
-        return self.username
+        return self.full_name or self.username
+
+
+class EmailVerificationOTP(models.Model):
+    """
+    Single-use 6-digit OTP for email-based registration verification.
+    Created when a user registers; deleted once they successfully verify.
+    OneToOne ensures at most one pending OTP per user — a resend simply
+    overwrites the existing record via update_or_create.
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="email_verification_otp",
+    )
+    otp = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "email_verification_otp"
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    def __str__(self):
+        return f"OTP for {self.user.email} (expires {self.expires_at})"
+
+
+class UserSession(models.Model):
+    """
+    Tracks active JWT refresh token sessions per user.
+    One record per login; updated on every token refresh.
+    Revoking a session blacklists the corresponding refresh token.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="user_sessions",
+    )
+    jti = models.CharField(
+        max_length=255,
+        unique=True,
+        help_text="JWT ID of the current refresh token for this session.",
+    )
+    device = models.CharField(max_length=200, blank=True)
+    browser = models.CharField(max_length=200, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_active = models.DateTimeField(default=timezone.now)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "user_session"
+        ordering = ["-last_active"]
+
+    def __str__(self):
+        return f"{self.user} — {self.browser} ({self.ip_address})"

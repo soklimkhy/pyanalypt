@@ -15,6 +15,7 @@ class AuthUserAdmin(BaseUserAdmin):
         "username",
         "full_name",
         "email_verified",
+        "totp_enabled",
         "is_staff",
         "is_active",
         "date_joined",
@@ -45,6 +46,10 @@ class AuthUserAdmin(BaseUserAdmin):
                     "email_verified",
                 )
             },
+        ),
+        (
+            "Two-Factor Authentication",
+            {"fields": ("totp_enabled",)},
         ),
         (
             "Permissions",

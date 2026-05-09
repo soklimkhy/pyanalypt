@@ -33,6 +33,11 @@ DEBUG = env.bool("DEBUG", default=False)
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 
+CSRF_TRUSTED_ORIGINS = env.list(
+    "CSRF_TRUSTED_ORIGINS",
+    default=["http://127.0.0.1:8000", "http://localhost:8000"],
+)
+
 
 # Application definition
 
@@ -60,8 +65,14 @@ INSTALLED_APPS = [
     "apps.users",
     "apps.core",
     "apps.datasets",
-    "apps.issues",
-    "apps.cleaning",
+    "apps.datalab",
+    "apps.goals",
+    "apps.eda",
+    "apps.visualization",
+    "apps.reports",
+    "apps.mlstudio",
+    "apps.chat",
+    "apps.dashboards",
 ]
 
 MIDDLEWARE = [
@@ -131,6 +142,8 @@ else:
             },
         }
     }
+
+DATAFRAME_CACHE_TTL = env.int("DATAFRAME_CACHE_TTL", default=7200)  # seconds, default 2 hours
 
 
 # ===== CORS CONFIGURATION =====
@@ -204,6 +217,18 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",  # Lock down by default
     ),
     "URL_FORMAT_OVERRIDE": None,  # Free up ?format= for our export endpoint
+    # Throttle rates — applied per-view, not globally.
+    # Uses the configured CACHES backend (locmem in dev, Redis in prod).
+    "DEFAULT_THROTTLE_CLASSES": [],
+    "DEFAULT_THROTTLE_RATES": {
+        "otp_resend":      "5/hour",   # ResendOTPView
+        "otp_verify":      "10/hour",  # RegistrationOTPVerifyView
+        "registration":    "10/hour",  # CustomRegisterView
+        "login":           "20/hour",  # CustomLoginView (brute-force protection)
+        "totp_verify":     "10/hour",  # TOTPVerifyLoginView (prevents TOTP brute-force)
+        "totp_action":     "20/hour",  # TOTPSetupView / TOTPEnableView / TOTPDisableView
+        "password_change": "5/hour",   # CustomPasswordChangeView
+    },
 }
 
 
@@ -311,7 +336,9 @@ REST_AUTH = {
     # Set to False so the refresh token is returned in the JSON body (SPA/mobile pattern).
     "JWT_AUTH_HTTPONLY": False,
     "USER_DETAILS_SERIALIZER": "apps.users.serializers.CustomUserDetailsSerializer",
-    "REGISTER_SERIALIZER": "apps.users.serializers.CustomRegisterSerializer",
+    "REGISTER_SERIALIZER": "apps.users.serializers.InitialRegisterSerializer",
+    # Require the current password when changing to a new one.
+    "OLD_PASSWORD_FIELD_ENABLED": True,
 }
 
 # ===== SOCIAL ACCOUNT PROVIDERS =====
@@ -360,3 +387,9 @@ ACCOUNT_ADAPTER = "apps.users.adapters.CustomAccountAdapter"
 
 # This will be used to populate AuthUser fields from Google metadata
 SOCIALACCOUNT_ADAPTER = "apps.users.adapters.CustomSocialAccountAdapter"
+
+
+# ===== OLLAMA AI SETTINGS =====
+# Local LLM integration for data analysis
+OLLAMA_API_URL = env("OLLAMA_API_URL", default="http://localhost:11434/api/generate")
+OLLAMA_MODEL = env("OLLAMA_MODEL", default="qwen2.5:7b")

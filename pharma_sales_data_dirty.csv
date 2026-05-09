@@ -1,0 +1,121 @@
+Transaction_ID,Date,Customer_Name,Drug_Name,Category,Quantity,Unit_Price,Total_Price,Location,Pharmacist
+TXN-1044,2023-08-29,Customer_178,Ibuprofen,Respiratory,2,64.21,128.42,Phoenix,Dr. Brown
+TXN-1047,2023-11-28,Customer_18,Azithromycin,Cardiovascular,4,25.97,103.88,Chicago,Dr. Brown
+TXN-1004,2023-01-29,Customer_64,Omeprazole,Gastrointestinal,6,77.39,464.34,Chicago,Dr. Jones
+TXN-1055,2023-12-14,Customer_52,Ibuprofen,Vitamins,ten,111.19,0.0,Chicago,Dr. Jones
+TXN-1026,2023-04-23,Customer_157,Lisinopril,Respiratory,3,101.8,305.4,Phoenix,Dr. Jones
+TXN-1064,2023-07-15,Customer_103,Sertraline,Antibiotics,9,36.18,325.62,Phoenix,Dr. Smith
+TXN-1073,2023-06-28,Customer_194,Ciprofloxacin,Antidiabetic,10,115.08,1150.8,Phoenix,Dr. Jones
+TXN-1010,2023-06-19,Customer_106,Lisinopril,Gastrointestinal,4,122.09,488.36,Phoenix,Dr. Smith
+TXN-1040,2023-03-02,Customer_26,Ventolin,Cardiovascular,8,90.34,722.72,San Antonio,Dr. Johnson
+TXN-1002,2023-10-02,Customer_26,Azithromycin,Respiratory,4,11.64,46.56,Chicago,Dr. Brown
+TXN-1018,2023-10-15,Customer_11,Insulin,Respiratory,9,23.48,211.32,San Diego,Dr. Johnson
+TXN-1062,2023/13/45,Customer_12,Amoxicillin,Antibiotics,8,57.5,460.0,Philadelphia,Dr. Jones
+TXN-1011,2023-12-11,Customer_141,Omeprazole,Antibiotics,4,25.33,101.32,NY,Dr. Jones
+TXN-1036,2023-01-06,Customer_149,Insulin,Analgesics,8,7.5,60.0,San Antonio,Dr. Jones
+TXN-1089,2023-12-21,Customer_184,Atorvastatin,Antibiotics,3,51.58,154.74,Philadelphia,Dr. Brown
+TXN-1091,2023-01-18,Customer_81,Aspirin,Antibiotics,8,58.94,471.52,Phoenix,Dr. Johnson
+TXN-1050,2023-01-08,Customer_161,Ibuprofen,Antidiabetic,7,128.51,899.57,Houston,Dr. Brown
+TXN-1000,2023/13/45,Customer_184,Metformin,Vitamins,9,66.18,595.62,New York,Dr. Jones
+TXN-1088,00-00-2023,Customer_87,Atorvastatin,Respiratory,5,58.36,291.8,Phoenix,Dr. Brown
+TXN-1065,2023-06-10,Customer_144,Ibuprofen,Antibiotics,2,112.97,225.94,Philadelphia,Dr. Smith
+TXN-1065,2023-06-10,Customer_144,Ibuprofen,Antibiotics,2,112.97,225.94,Philadelphia,Dr. Smith
+TXN-1045,2023-10-09,Customer_128,Aspirin,Respiratory,1,83.68,83.68,San Diego,Dr. Smith
+TXN-1031,2023-05-23,Customer_62,Amoxicillin,Antidiabetic,2,99.5,199.0,New York,Dr. Smith
+TXN-1070,2023-01-24,Customer_181,Amoxicillin,Respiratory,5,22.4,112.0,Philadelphia,Dr. Jones
+TXN-1042,2023-12-05,Customer_177,Vitamin C,Analgesics,3,91.28,273.84,Phoenix,Dr. Brown
+TXN-1012,2023-01-08,Customer_109,Ibuprofen,Respiratory,1,5.31,5.31,Houston,Dr. Jones
+TXN-1015,2023-07-22,Customer_95,Aspirin,Antibiotics,10,15.62,156.2,New York,Dr. Brown
+TXN-1074,2023-08-18,Customer_19,Vitamin C,Vitamins,8,69.12,552.96,Philadelphia,Dr. Brown
+TXN-1076,2023-11-06,Customer_157,Lisinopril,Antidiabetic,2,30.02,60.04,Philadelphia,Dr. Williams
+TXN-1097,2023-11-06,Customer_140,Ciprofloxacin,Vitamins,5,116.21,581.05,San Antonio,Dr. Williams
+TXN-1024,2023-11-07,Customer_173,Vitamin C,Respiratory,2,101.26,202.52,Chicago,Dr. Johnson
+TXN-1078,2023-12-06,Customer_190,Vitamin C,Gastrointestinal,2,59.62,119.24,San Diego,Dr. Jones
+TXN-1022,2023-06-26,Customer_170,Azithromycin,Analgesics,9999,57.81,578042.19,Houston,Dr. Williams
+TXN-1096,2023-06-15,Customer_149,Azithromycin,Antidiabetic,9,95.63,860.67,Philadelphia,Dr. Jones
+TXN-1056,2023-07-07,Customer_174,Ibuprofen,Cardiovascular,5,54.11,270.55,Chicago,Dr. Brown
+TXN-1064,2023-07-15,Customer_103,Sertraline,Antibiotics,9,36.18,325.62,Phoenix,Dr. Smith
+TXN-1030,2023-03-26,Customer_87,azithromycin,Antibiotics,7,71.95,503.65,Houston,Dr. Brown
+TXN-1053,2023-08-27,Customer_147,Lisinopril,Antidiabetic,7,71.24,498.68,NY,Dr. Williams
+TXN-1076,2023-11-06,Customer_157,Lisinopril,Antidiabetic,2,30.02,60.04,Philadelphia,Dr. Williams
+TXN-1009,2024-01-01,Customer_16,Aspirin,Antibiotics,2,90.3,180.6,San Antonio,Dr. Smith
+TXN-1033,2023-02-08,,Paracetamol,Vitamins,2,87.06,174.12,New York,Dr. Brown
+TXN-1025,Invalid Date,Customer_198,Sertraline,Cardiovascular,10,105.97,1059.7,New York,Dr. Brown
+TXN-1069,21-03-2023,Customer_152,Paracetamol,Cardiovascular,7,114.47,801.29,San Antonio,Dr. Williams
+TXN-1028,2023-10-04,Customer_6,Insulin,Cardiovascular,9,14.03,126.27,San Antonio,Dr. Jones
+TXN-1098,2023-09-05,Customer_89,Atorvastatin,Analgesics,8,54.33,434.64,San Diego,Dr. Johnson
+TXN-1085,2023-09-13,Customer_140,Sertraline,,6,65.4,392.4,New York,Dr. Jones
+TXN-1005,2023-05-15,Customer_17,Omeprazole,Analgesics,2,129.86,259.72,Philadelphia,Dr. Jones
+TXN-1090,2023/13/45,Customer_156,Sertraline,Respiratory,2,63.9,127.8,NY,Dr. Brown
+TXN-1068,2023-03-15,Customer_153,Insulin,Vitamins,7,54.43,381.01,Philadelphia,Dr. Smith
+TXN-1039,2023-10-21,Customer_78,Ibuprofen,Respiratory,2,15.74,31.48,Philadelphia,Dr. Johnson
+TXN-1049,2023-10-20,Customer_113,Amoxicillin,Respiratory,3,10.37,31.11,San Diego,Dr. Brown
+TXN-1035,2023-05-06,Customer_180,Ventolin,Cardiovascular,8,31.37,250.96,Philadelphia,Dr. Jones
+TXN-1016,2023-10-06,Customer_73,Ventolix,Respiratory,2,24.47,48.94,Houston,Dr. Williams
+TXN-1066,2023-07-30,Customer_143,Omeprazole,Antidiabetic,6,78.57,471.42,Houston,Dr. Williams
+TXN-1034,2023-09-08,Customer_188,Gabapentin,Cardiovascular,9,44.16,397.44,Phoenix,Dr. Williams
+TXN-1027,2023-08-07,Customer_61,Ciprofloxacin,Analgesics,5,80.59,402.95,Houston,Dr. Williams
+TXN-1007,2023-02-24,Customer_79,Sertraline,Analgesics,9,91.85,826.65,San Diego,Dr. Johnson
+TXN-1043,2023-05-20,Customer_69,sertraline,,4,126.21,504.84,San Antonio,Dr. Johnson
+TXN-1072,2023-08-24,Customer_30,Ciprofloxacin,Cardiovascular,7,113.14,791.98,San Antonio,Dr. Johnson
+TXN-1067,2023-10-21,Customer_87,Ventolin,Vitamins,10,125.27,1252.7,Houston,Dr. Johnson
+TXN-1083,2023-01-14,Customer_121,Metformin,,2,99.24,198.48,San Diego,Dr. Johnson
+TXN-1027,2023-08-07,Customer_61,Ciprofloxacin,Analgesics,5,80.59,402.95,Houston,Dr. Williams
+TXN-1019,2023-12-16,Customer_86,Azithromycin,Gastrointestinal,4,146.55,586.2,San Antonio,Dr. Brown
+TXN-1095,2023-11-25,Customer_40,Aspirin,Gastrointestinal,3,23.71,71.13,Philadelphia,Dr. Johnson
+TXN-1024,2023-11-07,Customer_173,Vitamin C,Respiratory,2,101.26,202.52,Chicago,Dr. Johnson
+TXN-1008,2023-10-18,Customer_194,Paracetamol,Analgesics,8,28.94,231.52,Philadelphia,Dr. Johnson
+TXN-1013,2023-12-05,Customer_21,Metformin,Gastrointestinal,6,89.71,538.26,Philadelphia,Dr. Smith
+TXN-1084,28-12-2023,Customer_160,paracetamol,Vitamins,7,46.77,327.39,San Diego,Dr. Smith
+TXN-1003,2023-11-22,Customer_143,Vitamin C,Vitamins,3,40.5,121.5,San Antonio,Dr. Williams
+TXN-1017,2023-04-15,Customer_190,Lisinopril,Antibiotics,7,11.39,79.73,Chicago,Dr. Brown
+TXN-1038,2023-10-29,Customer_193,Ciprofloxacin,Analgesics,9,11.6,104.4,San Antonio,Dr. Smith
+TXN-1036,2023-01-06,Customer_149,Insulin,Analgesics,8,7.5,60.0,San Antonio,Dr. Jones
+TXN-1006,2023-08-28,Customer_129,Amoxicillin,Gastrointestinal,6,68.04,408.24,Houston,Dr. Jones
+TXN-1077,2023-05-25,Customer_39,Sertraline,Antidiabetic,2,61.05,122.1,Philadelphia,Dr. Jones
+TXN-1058,2023-04-24,Customer_95,Gabapentin,Antibiotics,1,76.43,76.43,Phoenix,Dr. Jones
+TXN-1094,13-03-2023,Customer_148,Azithromycin,Gastrointestinal,2,62.73,125.46,Phoenix,Dr. Williams
+TXN-1054,Invalid Date,Customer_163,ATORVASTATIN,Antibiotics,8,135.93,1087.44,Chicago,Dr. Williams
+TXN-1050,2023-01-08,Customer_161,Ibuprofen,Antidiabetic,7,128.51,899.57,Houston,Dr. Brown
+TXN-1080,2023-01-20,Customer_114,Ibuprofen,Analgesics,10,29.0,290.0,Chicago,Dr. Brown
+TXN-1046,2023-04-15,Customer_30,Lisinopril,Antibiotics,10,,0.0,Chicago,Dr. Smith
+TXN-1081,2023-04-30,Customer_52,Ventolin,Antidiabetic,10,71.94,719.4,Chicago,Dr. Johnson
+TXN-1061,2023-04-17,Customer_4,Aspirin,,3,83.33,249.99,Chicago,Dr. Johnson
+TXN-1006,2023-08-28,Customer_129,Amoxicillin,Gastrointestinal,6,68.04,408.24,Houston,Dr. Jones
+TXN-1079,2023-02-17,Customer_198,Amoxicillin,Analgesics,8,150.0,1200.0,Philadelphia,Dr. Jones
+TXN-1093,2023-02-14,Customer_58,Vitamin C,Gastrointestinal,5,108.21,541.05,Philadelphia,Dr. Johnson
+TXN-1041,2023-11-17,Customer_68,Metformin,Antibiotics,10,9.73,97.3,New York,Dr. Jones
+TXN-1058,2023-04-24,Customer_95,Gabapentin,Antibiotics,1,76.43,76.43,Phoenix,Dr. Jones
+TXN-1048,24-06-2023,Customer_49,Insulin,Vitamins,3,75.23,225.69,Houston,Dr. Johnson
+TXN-1097,2023-11-06,Customer_140,Ciprofloxacin,Vitamins,5,116.21,581.05,San Antonio,Dr. Williams
+TXN-1057,2023-10-13,Customer_144,Atorvastatin,Vitamins,5,124.25,621.25,New York,Dr. Jones
+TXN-1075,2023-01-20,Customer_147,Vitamin C,Gastrointestinal,7,85.38,597.66,San Diego,Dr. Williams
+TXN-1032,2023-10-16,Customer_102,Aspirin,Vitamins,3,20.67,62.01,Phoenix,Dr. Johnson
+TXN-1030,2023-03-26,Customer_87,azithromycin,Antibiotics,7,71.95,503.65,Houston,Dr. Brown
+TXN-1059,2023-08-03,Customer_95,Omeprazole,Gastrointestinal,ten,36.5,0.0,San Antonio,Dr. Williams
+TXN-1063,04-06-2023,Customer_150,Lisinopril,Antibiotics,8,16.71,133.68,San Antonio,Dr. Williams
+TXN-1059,2023-08-03,Customer_95,Omeprazole,Gastrointestinal,ten,36.5,0.0,San Antonio,Dr. Williams
+TXN-1037,2023-09-29,Customer_56,Aspirin,Antidiabetic,2,50.75,101.5,Chicago,Dr. Williams
+TXN-1029,2023/13/45,Customer_87,Atorvastatin,Respiratory,9,135.18,1216.62,Phoenix,Dr. Brown
+TXN-1045,2023-10-09,Customer_128,Aspirin,Respiratory,1,83.68,83.68,San Diego,Dr. Smith
+TXN-1001,2023-08-03,Customer_68,CIPROFLOXACIN,Antidiabetic,4,53.81,215.24,Philadelphia,Dr. Brown
+TXN-1052,2023-08-09,Customer_118,Vitamin C,Antibiotics,7,39.92,279.44,Houston,Dr. Smith
+TXN-1021,2023-06-18,Customer_10,Atorvastatin,Vitamins,9,9.0,81.0,Houston,Dr. Brown
+TXN-1002,2023-10-02,Customer_26,Azithromycin,Respiratory,4,11.64,46.56,Chicago,Dr. Brown
+TXN-1023,2023-09-17,Customer_54,Insulin,Cardiovascular,7,135.91,951.37,NY,Dr. Jones
+TXN-1063,04-06-2023,Customer_150,Lisinopril,Antibiotics,8,16.71,133.68,San Antonio,Dr. Williams
+TXN-1099,2023-07-09,Customer_84,Lisinopril,Analgesics,5,130.3,651.5,San Diego,Dr. Williams
+TXN-1087,2023-06-23,Customer_80,Lisinopril,Analgesics,2,141.82,283.64,NY,Dr. Jones
+TXN-1011,2023-12-11,Customer_141,Omeprazole,Antibiotics,4,25.33,101.32,NY,Dr. Jones
+TXN-1074,2023-08-18,Customer_19,Vitamin C,Vitamins,8,69.12,552.96,Philadelphia,Dr. Brown
+TXN-1086,2023-10-11,Customer_35,Vitamin C,,2,111.28,222.56,Houston,Dr. Jones
+TXN-1082,2023-05-09,Customer_57,Azithromycin,Gastrointestinal,5,28.25,141.25,New York,Dr. Williams
+TXN-1083,2023-01-14,Customer_121,Metformin,,2,99.24,198.48,San Diego,Dr. Johnson
+TXN-1020,2023-12-09,Customer_7,Ventolin,Antibiotics,4,138.18,552.72,Chicago,Dr. Brown
+TXN-1060,2023-02-01,Customer_18,Ciprofloxacin,Analgesics,10,12.33,123.3,Chicago,Dr. Jones
+TXN-1071,2023-12-09,Customer_44,Amoxicillin,Antibiotics,10,63.64,636.4,Houston,Dr. Jones
+TXN-1039,2023-10-21,Customer_78,Ibuprofen,Respiratory,2,15.74,31.48,Philadelphia,Dr. Johnson
+TXN-1014,2023-11-01,Customer_184,Paracetamol,Gastrointestinal,10,100.32,1003.2,San Antonio,Dr. Williams
+TXN-1092,2023-02-28,Customer_19,Omeprazole,Respiratory,8,93.72,749.76,Chicago,Dr. Brown
+TXN-1051,2023-10-05,Customer_15,Vitamin C,Vitamins,2,107.06,214.12,NY,Dr. Williams
+TXN-1020,2023-12-09,Customer_7,Ventolin,Antibiotics,4,138.18,552.72,Chicago,Dr. Brown
