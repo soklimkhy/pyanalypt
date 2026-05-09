@@ -3890,22 +3890,30 @@ Interact with your datasets using natural language. The AI Chat module uses loca
 
 ## 📊 Dashboard Builder
 
-Build custom interactive dashboards by arranging widgets in a 12-column grid layout.
+Build custom interactive dashboards by arranging widgets in a 12-column grid layout. Dashboards can be shared publicly via unique tokens.
 
 **Base path**: `/api/v1/dashboards/`
 
 ### 1. Dashboard Management
 - **List Dashboards**: `GET /dashboards/` (Optional filter: `?dataset_id=<id>`)
-- **Create Dashboard**: `POST /dashboards/` (Body: `{ "dataset_id": 23, "title": "Sales Performance", "description": "Weekly overview" }`)
+- **Create Dashboard**: `POST /dashboards/` (Body: `{ "dataset_id": 23, "title": "Sales Performance", "description": "..." }`)
 - **Retrieve Dashboard**: `GET /dashboards/{id}/` (Returns full layout + widget data)
-- **Update Dashboard**: `PATCH /dashboards/{id}/` (Body: `{ "title": "New Title", "description": "..." }`)
+- **Update Dashboard**: `PATCH /dashboards/{id}/` (Body: `{ "title": "New Title", "is_public": true }`)
 - **Delete Dashboard**: `DELETE /dashboards/{id}/`
 - **Refresh Dashboard**: `POST /dashboards/{id}/refresh/` (Re-calculates all widgets)
+
+#### 🔐 Public Sharing
+- **Share/Toggle Access**: `POST /dashboards/{id}/share/`
+  - **Body**: `{ "is_public": true }` (optional, toggles if omitted)
+  - **Response**: `{ "is_public": true, "share_token": "...", "public_url": "..." }`
+- **View Public Dashboard**: `GET /dashboards/public/{share_token}/`
+  - **Auth Required**: No
+  - **Response**: Full dashboard object (Read-only)
 
 ---
 
 ### 2. Widget Management
-Widgets are attached to a dashboard and store their own chart parameters and grid coordinates.
+Widgets support standard charts, embedded reports, or freeform text.
 
 - **Add Widget**: `POST /dashboards/{id}/widgets/`
   - **Request Body**:
@@ -3913,10 +3921,13 @@ Widgets are attached to a dashboard and store their own chart parameters and gri
   {
     "title": "Monthly Revenue",
     "chart_type": "bar",
-    "chart_params": { "x_col": "Month", "y_col": "Revenue", "agg": "sum" },
+    "chart_params": { "x_col": "Month", "y_col": "Revenue" },
+    "report_id": null,
+    "text_content": "",
     "grid_col": 0, "grid_row": 0, "grid_width": 6, "grid_height": 4
   }
   ```
+  > **Note**: For `chart_type: "report"`, provide a valid `report_id`. For `chart_type: "text"`, provide `text_content`.
 - **Update Layout/Params**: `PATCH /dashboards/{id}/widgets/{wid}/`
 - **Refresh Single Widget**: `POST /dashboards/{id}/widgets/{wid}/refresh/`
 - **Delete Widget**: `DELETE /dashboards/{id}/widgets/{wid}/`

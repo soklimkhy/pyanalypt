@@ -1,3 +1,4 @@
+import uuid
 from django.conf import settings
 from django.db import models
 
@@ -7,12 +8,21 @@ from apps.datasets.models import Dataset
 class Dashboard(models.Model):
     """A named collection of chart widgets for a dataset."""
 
-    user    = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="dashboards")
-    dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="dashboards")
-    title       = models.CharField(max_length=200)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="dashboards"
+    )
+    dataset = models.ForeignKey(
+        Dataset, on_delete=models.CASCADE, related_name="dashboards"
+    )
+    title = models.CharField(max_length=200)
     description = models.TextField(blank=True, default="")
-    created_at  = models.DateTimeField(auto_now_add=True)
-    updated_at  = models.DateTimeField(auto_now=True)
+
+    # Public sharing fields
+    is_public = models.BooleanField(default=False)
+    share_token = models.UUIDField(default=uuid.uuid4, editable=False, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "dashboard"
@@ -25,22 +35,35 @@ class Dashboard(models.Model):
 class DashboardWidget(models.Model):
     """A single chart pinned to a dashboard at a specific grid position."""
 
-    CHART_BAR       = "bar"
-    CHART_LINE      = "line"
-    CHART_SCATTER   = "scatter"
+    CHART_BAR = "bar"
+    CHART_LINE = "line"
+    CHART_SCATTER = "scatter"
     CHART_HISTOGRAM = "histogram"
-    CHART_TEXT      = "text"
+    CHART_TEXT = "text"
+    CHART_REPORT = "report"
+
     CHART_CHOICES = [
-        (CHART_BAR,       "Bar"),
-        (CHART_LINE,      "Line"),
-        (CHART_SCATTER,   "Scatter"),
+        (CHART_BAR, "Bar"),
+        (CHART_LINE, "Line"),
+        (CHART_SCATTER, "Scatter"),
         (CHART_HISTOGRAM, "Histogram"),
-        (CHART_TEXT,      "Text / Annotation"),
+        (CHART_TEXT, "Text / Annotation"),
+        (CHART_REPORT, "Embedded Report"),
     ]
 
-    dashboard   = models.ForeignKey(Dashboard, on_delete=models.CASCADE, related_name="widgets")
-    title       = models.CharField(max_length=200)
-    chart_type  = models.CharField(max_length=20, choices=CHART_CHOICES)
+    dashboard = models.ForeignKey(
+        Dashboard, on_delete=models.CASCADE, related_name="widgets"
+    )
+    report = models.ForeignKey(
+        "reports.Report",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="dashboard_widgets",
+    )
+
+    title = models.CharField(max_length=200)
+    chart_type = models.CharField(max_length=20, choices=CHART_CHOICES)
 
     # Chart parameters — matches the existing visualization API
     chart_params = models.JSONField(
@@ -60,10 +83,10 @@ class DashboardWidget(models.Model):
     text_content = models.TextField(blank=True, default="")
 
     # Layout: column-based grid (0-indexed, 12-column grid)
-    grid_col    = models.PositiveSmallIntegerField(default=0)
-    grid_row    = models.PositiveSmallIntegerField(default=0)
-    grid_width  = models.PositiveSmallIntegerField(default=6)   # out of 12
-    grid_height = models.PositiveSmallIntegerField(default=4)   # arbitrary units
+    grid_col = models.PositiveSmallIntegerField(default=0)
+    grid_row = models.PositiveSmallIntegerField(default=0)
+    grid_width = models.PositiveSmallIntegerField(default=6)  # out of 12
+    grid_height = models.PositiveSmallIntegerField(default=4)  # arbitrary units
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

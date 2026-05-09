@@ -12,6 +12,7 @@ from apps.core.data_engine import (
     get_cached_dataframe,
 )
 from apps.datasets.models import Dataset
+from apps.reports.models import Report
 
 from .models import Dashboard, DashboardWidget
 from .serializers import (
@@ -79,6 +80,8 @@ def _render_widget(widget: DashboardWidget, df) -> dict | None:
             return charts.get(col)
         if widget.chart_type == DashboardWidget.CHART_TEXT:
             return None  # text widgets have no chart config
+        if widget.chart_type == DashboardWidget.CHART_REPORT:
+            return None  # report widgets contain an entire report (rendered on frontend)
     except (KeyError, TypeError, ValueError) as exc:
         logger.warning("Widget %s render failed: %s", widget.pk, exc)
         return None
@@ -89,6 +92,11 @@ def _render_widget(widget: DashboardWidget, df) -> dict | None:
 
 class DashboardViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action == 'public_view':
+            return [permissions.AllowAny()]
+        return super().get_permissions()
 
     def list(self, request):
         """GET /dashboards/"""
@@ -114,11 +122,7 @@ class DashboardViewSet(viewsets.ViewSet):
     def retrieve(self, request, pk=None):
         """GET /dashboards/{id}/  — full dashboard with all widgets."""
         dashboard = get_object_or_404(Dashboard, pk=pk, user=request.user)
-        widgets = dashboard.widgets.all()
-        return Response({
-            **DashboardSerializer(dashboard).data,
-            "widgets": DashboardWidgetSerializer(widgets, many=True).data,
-        })
+        return Response(DashboardSerializer(dashboard).data)
 
     def partial_update(self, request, pk=None):
         """PATCH /dashboards/{id}/  — rename or update description."""
@@ -130,6 +134,10 @@ class DashboardViewSet(viewsets.ViewSet):
         if "description" in request.data:
             dashboard.description = str(request.data["description"])
             fields.append("description")
+        if "is_public" in request.data:
+            dashboard.is_public = bool(request.data["is_public"])
+            fields.append("is_public")
+            
         if fields:
             dashboard.save(update_fields=fields)
         return Response(DashboardSerializer(dashboard).data)
@@ -140,12 +148,35 @@ class DashboardViewSet(viewsets.ViewSet):
         dashboard.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(detail=True, methods=["post"], url_path="share")
+    def share(self, request, pk=None):
+        """
+        POST /dashboards/{id}/share/
+        Toggle public access and return the share token.
+        """
+        dashboard = get_object_or_404(Dashboard, pk=pk, user=request.user)
+        dashboard.is_public = request.data.get("is_public", not dashboard.is_public)
+        dashboard.save(update_fields=["is_public", "updated_at"])
+        return Response({
+            "is_public": dashboard.is_public,
+            "share_token": dashboard.share_token,
+            "title": dashboard.title
+        })
+
+    @action(detail=False, methods=["get"], url_path="public/(?P<share_token>[^/.]+)")
+    def public_view(self, request, share_token=None):
+        """
+        GET /dashboards/public/{share_token}/
+        Retrieve a dashboard by its public token. No auth required if is_public=True.
+        """
+        dashboard = get_object_or_404(Dashboard.objects.prefetch_related("widgets"), share_token=share_token, is_public=True)
+        return Response(DashboardSerializer(dashboard).data)
+
     @action(detail=True, methods=["post"], url_path="refresh")
     def refresh(self, request, pk=None):
         """
         POST /dashboards/{id}/refresh/
-        Re-renders all non-text widgets and saves the updated chart_config.
-        Returns the full dashboard with fresh configs.
+        Re-renders all non-text/non-report widgets and saves the updated chart_config.
         """
         dashboard = get_object_or_404(Dashboard, pk=pk, user=request.user)
         df = _load_df(dashboard.dataset)
@@ -154,7 +185,7 @@ class DashboardViewSet(viewsets.ViewSet):
 
         refreshed, errors = 0, []
         for widget in dashboard.widgets.all():
-            if widget.chart_type == DashboardWidget.CHART_TEXT:
+            if widget.chart_type in (DashboardWidget.CHART_TEXT, DashboardWidget.CHART_REPORT):
                 continue
             config = _render_widget(widget, df)
             if config is not None:
@@ -164,10 +195,8 @@ class DashboardViewSet(viewsets.ViewSet):
             else:
                 errors.append({"widget_id": widget.pk, "title": widget.title})
 
-        widgets = dashboard.widgets.all()
         return Response({
             **DashboardSerializer(dashboard).data,
-            "widgets": DashboardWidgetSerializer(widgets, many=True).data,
             "refreshed": refreshed,
             "errors": errors,
         })
@@ -187,7 +216,7 @@ class DashboardWidgetViewSet(viewsets.ViewSet):
         return Response(DashboardWidgetSerializer(dashboard.widgets.all(), many=True).data)
 
     def create(self, request, dashboard_id=None):
-        """POST /dashboards/{dashboard_id}/widgets/  — add a widget and immediately render it."""
+        """POST /dashboards/{dashboard_id}/widgets/  — add a widget."""
         dashboard = self._get_dashboard(dashboard_id, request.user)
 
         s = AddWidgetSerializer(data=request.data)
@@ -197,9 +226,13 @@ class DashboardWidgetViewSet(viewsets.ViewSet):
             raise ValidationError(s.errors)
         d = s.validated_data
 
+        if d.get("report_id"):
+            get_object_or_404(Report, pk=d["report_id"], user=request.user)
+
         widget = DashboardWidget(
             dashboard=dashboard,
             title=d["title"],
+            report_id=d.get("report_id"),
             chart_type=d["chart_type"],
             chart_params=d.get("chart_params", {}),
             text_content=d.get("text_content", ""),
@@ -209,12 +242,12 @@ class DashboardWidgetViewSet(viewsets.ViewSet):
             grid_height=d.get("grid_height", 4),
         )
 
-        # Render chart on creation if it's not a text widget
-        if widget.chart_type != DashboardWidget.CHART_TEXT:
+        # Render chart if it's a standard chart type
+        static_types = (DashboardWidget.CHART_TEXT, DashboardWidget.CHART_REPORT)
+        if widget.chart_type not in static_types:
             df = _load_df(dashboard.dataset)
-            if df is None:
-                return Response({"detail": _LOAD_FAILED}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            widget.chart_config = _render_widget(widget, df)
+            if df is not None:
+                widget.chart_config = _render_widget(widget, df)
 
         widget.save()
         return Response(DashboardWidgetSerializer(widget).data, status=status.HTTP_201_CREATED)
@@ -228,19 +261,23 @@ class DashboardWidgetViewSet(viewsets.ViewSet):
         s.is_valid(raise_exception=True)
         d = s.validated_data
 
+        if "report_id" in d and d["report_id"]:
+            get_object_or_404(Report, pk=d["report_id"], user=request.user)
+
         changed = []
-        for field in ("title", "chart_params", "text_content", "grid_col", "grid_row", "grid_width", "grid_height"):
+        fields = ("title", "report_id", "chart_params", "text_content", "grid_col", "grid_row", "grid_width", "grid_height")
+        for field in fields:
             if field in d:
                 setattr(widget, field, d[field])
                 changed.append(field)
 
-        # Re-render if chart params changed
-        if "chart_params" in d and widget.chart_type != DashboardWidget.CHART_TEXT:
+        # Re-render if chart params changed and it's a renderable type
+        static_types = (DashboardWidget.CHART_TEXT, DashboardWidget.CHART_REPORT)
+        if "chart_params" in d and widget.chart_type not in static_types:
             df = _load_df(dashboard.dataset)
-            if df is None:
-                return Response({"detail": _LOAD_FAILED}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            widget.chart_config = _render_widget(widget, df)
-            changed.append("chart_config")
+            if df is not None:
+                widget.chart_config = _render_widget(widget, df)
+                changed.append("chart_config")
 
         if changed:
             widget.save(update_fields=[*changed, "updated_at"])
@@ -256,12 +293,13 @@ class DashboardWidgetViewSet(viewsets.ViewSet):
 
     @action(detail=True, methods=["post"], url_path="refresh")
     def refresh(self, request, dashboard_id=None, pk=None):
-        """POST /dashboards/{dashboard_id}/widgets/{id}/refresh/  — re-render a single widget."""
+        """POST /dashboards/{dashboard_id}/widgets/{id}/refresh/"""
         dashboard = self._get_dashboard(dashboard_id, request.user)
         widget = get_object_or_404(DashboardWidget, pk=pk, dashboard=dashboard)
 
-        if widget.chart_type == DashboardWidget.CHART_TEXT:
-            return Response({"detail": "Text widgets have no chart config to refresh."})
+        static_types = (DashboardWidget.CHART_TEXT, DashboardWidget.CHART_REPORT)
+        if widget.chart_type in static_types:
+            return Response({"detail": "Static widgets have no chart config to refresh."})
 
         df = _load_df(dashboard.dataset)
         if df is None:
@@ -270,7 +308,7 @@ class DashboardWidgetViewSet(viewsets.ViewSet):
         config = _render_widget(widget, df)
         if config is None:
             return Response(
-                {"detail": "Chart rendering failed. Check chart_params are valid for the dataset."},
+                {"detail": "Chart rendering failed."},
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
