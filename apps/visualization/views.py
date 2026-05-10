@@ -4,7 +4,9 @@ import pandas as pd
 from rest_framework import permissions, status, viewsets
 from rest_framework.response import Response
 
-from apps.core.chart_engine import AGGREGATIONS, fmt_bar, fmt_histogram, fmt_line, fmt_scatter
+from apps.core.chart_engine import (
+    AGGREGATIONS, fmt_bar, fmt_histogram, fmt_kpi, fmt_line, fmt_pie, fmt_scatter, fmt_treemap
+)
 from apps.core.data_engine import apply_stored_casts, eda_distribution, get_cached_dataframe
 from apps.datasets.models import Dataset
 
@@ -206,3 +208,84 @@ class VisualizationViewSet(viewsets.ViewSet):
             logger.exception("fmt_histogram failed for dataset %s", dataset_id)
             return Response({"detail": "Internal error building histogram."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(data)
+
+    def kpi(self, request, dataset_id=None):
+        err, df = _load_df(dataset_id, request)
+        if err:
+            return err
+
+        value_col = request.query_params.get("value_col")
+        if not value_col:
+            return Response({"detail": "'value_col' is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if value_col not in df.columns:
+            return Response({"detail": f"Column '{value_col}' not found."}, status=status.HTTP_400_BAD_REQUEST)
+        if not pd.api.types.is_numeric_dtype(df[value_col]):
+            return Response({"detail": f"Column '{value_col}' must be numeric."}, status=status.HTTP_400_BAD_REQUEST)
+
+        agg = request.query_params.get("agg", "sum")
+        if agg not in AGGREGATIONS:
+            return Response({"detail": f"Invalid agg. Must be one of {AGGREGATIONS}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        label = request.query_params.get("label")
+        try:
+            data = fmt_kpi(df, value_col, agg=agg, label=label)
+            return Response(data)
+        except Exception:
+            logger.exception("fmt_kpi failed for dataset %s", dataset_id)
+            return Response({"detail": "Error computing KPI."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def pie(self, request, dataset_id=None):
+        err, df = _load_df(dataset_id, request)
+        if err:
+            return err
+
+        name_col = request.query_params.get("name_col")
+        value_col = request.query_params.get("value_col")
+        if not name_col or not value_col:
+            return Response({"detail": "'name_col' and 'value_col' are required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        for col in (name_col, value_col):
+            if col not in df.columns:
+                return Response({"detail": f"Column '{col}' not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not pd.api.types.is_numeric_dtype(df[value_col]):
+            return Response({"detail": f"Value column '{value_col}' must be numeric."}, status=status.HTTP_400_BAD_REQUEST)
+
+        agg = request.query_params.get("agg", "sum")
+        if agg not in AGGREGATIONS:
+            return Response({"detail": f"Invalid agg. Must be one of {AGGREGATIONS}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            data = fmt_pie(df, name_col, value_col, agg=agg)
+            return Response(data)
+        except Exception:
+            logger.exception("fmt_pie failed for dataset %s", dataset_id)
+            return Response({"detail": "Error building pie chart."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def treemap(self, request, dataset_id=None):
+        err, df = _load_df(dataset_id, request)
+        if err:
+            return err
+
+        name_col = request.query_params.get("name_col")
+        value_col = request.query_params.get("value_col")
+        if not name_col or not value_col:
+            return Response({"detail": "'name_col' and 'value_col' are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        for col in (name_col, value_col):
+            if col not in df.columns:
+                return Response({"detail": f"Column '{col}' not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not pd.api.types.is_numeric_dtype(df[value_col]):
+            return Response({"detail": f"Value column '{value_col}' must be numeric."}, status=status.HTTP_400_BAD_REQUEST)
+
+        agg = request.query_params.get("agg", "sum")
+        if agg not in AGGREGATIONS:
+            return Response({"detail": f"Invalid agg. Must be one of {AGGREGATIONS}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            data = fmt_treemap(df, name_col, value_col, agg=agg)
+            return Response(data)
+        except Exception:
+            logger.exception("fmt_treemap failed for dataset %s", dataset_id)
+            return Response({"detail": "Error building treemap."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

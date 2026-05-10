@@ -41,6 +41,9 @@ class DashboardWidget(models.Model):
     CHART_HISTOGRAM = "histogram"
     CHART_TEXT = "text"
     CHART_REPORT = "report"
+    CHART_KPI = "kpi"
+    CHART_PIE = "pie"
+    CHART_TREEMAP = "treemap"
 
     CHART_CHOICES = [
         (CHART_BAR, "Bar"),
@@ -49,6 +52,9 @@ class DashboardWidget(models.Model):
         (CHART_HISTOGRAM, "Histogram"),
         (CHART_TEXT, "Text / Annotation"),
         (CHART_REPORT, "Embedded Report"),
+        (CHART_KPI, "KPI Card"),
+        (CHART_PIE, "Pie Chart"),
+        (CHART_TREEMAP, "Treemap"),
     ]
 
     dashboard = models.ForeignKey(

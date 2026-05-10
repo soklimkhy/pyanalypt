@@ -35,7 +35,7 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 
 CSRF_TRUSTED_ORIGINS = env.list(
     "CSRF_TRUSTED_ORIGINS",
-    default=["http://127.0.0.1:8000", "http://localhost:8000"],
+    default=["http://127.0.0.1:8000", "http://localhost:8000", "http://localhost:3000", "http://127.0.0.1:3000"],
 )
 
 
@@ -156,10 +156,11 @@ if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
     CORS_ALLOW_CREDENTIALS = True
 else:
-    # Production: Only allow specific origins
     CORS_ALLOWED_ORIGINS = env.list(
         "CORS_ALLOWED_ORIGINS",
         default=[
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
             "https://yourdomain.com",
             "https://www.yourdomain.com",
         ],

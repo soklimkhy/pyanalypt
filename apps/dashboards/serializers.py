@@ -2,8 +2,6 @@ from rest_framework import serializers
 
 from .models import Dashboard, DashboardWidget
 
-CHART_TYPES = {c[0] for c in DashboardWidget.CHART_CHOICES}
-
 
 class DashboardWidgetSerializer(serializers.ModelSerializer):
     class Meta:
@@ -44,7 +42,7 @@ class CreateDashboardSerializer(serializers.Serializer):
 class AddWidgetSerializer(serializers.Serializer):
     title       = serializers.CharField(max_length=200)
     report_id   = serializers.IntegerField(required=False, allow_null=True)
-    chart_type  = serializers.ChoiceField(choices=list(CHART_TYPES))
+    chart_type  = serializers.ChoiceField(choices=DashboardWidget.CHART_CHOICES)
     chart_params = serializers.DictField(required=False, default=dict)
     text_content = serializers.CharField(required=False, allow_blank=True, default="")
     grid_col    = serializers.IntegerField(min_value=0, max_value=11, default=0)
