@@ -174,3 +174,70 @@ def fmt_histogram(distribution_data):
             "stats": {k: stats[k] for k in ("count", "mean", "std", "min", "max", "skewness", "kurtosis") if k in stats},
         }
     return result
+
+
+def fmt_kpi(df, value_col, agg="sum", label=None):
+    """
+    Return a KPI (Big Number) widget response.
+    """
+    val = df[value_col].agg(agg)
+    # Basic formatting: if it's a large float, round it.
+    formatted = val
+    if isinstance(val, (float, np.float64, np.float32)):
+        if abs(val) >= 1_000_000:
+            formatted = f"{val/1_000_000:.1f}M"
+        elif abs(val) >= 1_000:
+            formatted = f"{val/1_000:.1f}K"
+        else:
+            formatted = f"{val:.2f}"
+    
+    return {
+        "chart_type": "kpi",
+        "metrics": {
+            "label": label or f"{agg}({value_col})",
+            "value": _s(val),
+            "formatted_value": str(formatted),
+            "trend": None  # Trend usually requires time-series data which we don't handle in a single-agg call yet
+        }
+    }
+
+
+def fmt_pie(df, name_col, value_col, agg="sum", limit=10):
+    """
+    Return an ECharts pie option dict.
+    """
+    grouped = df.groupby(name_col)[value_col].agg(agg)
+    top = grouped.nlargest(limit)
+    
+    data = [
+        {"name": str(name), "value": _s(val)}
+        for name, val in top.items()
+    ]
+    
+    # If there are more items, add an "Others" category
+    if len(grouped) > limit:
+        others_val = grouped.sum() - top.sum()
+        data.append({"name": "Others", "value": _s(others_val)})
+
+    return {
+        "chart_type": "pie",
+        "series": data  # The user requested 'series' to be the list of items
+    }
+
+
+def fmt_treemap(df, name_col, value_col, agg="sum", limit=20):
+    """
+    Return an ECharts treemap data structure.
+    """
+    grouped = df.groupby(name_col)[value_col].agg(agg)
+    top = grouped.nlargest(limit)
+    
+    data = [
+        {"name": str(name), "value": _s(val)}
+        for name, val in top.items()
+    ]
+
+    return {
+        "chart_type": "treemap",
+        "series": data
+    }

@@ -5,7 +5,9 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.core.chart_engine import fmt_bar, fmt_histogram, fmt_line, fmt_scatter
+from apps.core.chart_engine import (
+    fmt_bar, fmt_histogram, fmt_kpi, fmt_line, fmt_pie, fmt_scatter, fmt_treemap
+)
 from apps.core.data_engine import (
     apply_stored_casts,
     eda_distribution,
@@ -82,6 +84,27 @@ def _render_widget(widget: DashboardWidget, df) -> dict | None:
             return None  # text widgets have no chart config
         if widget.chart_type == DashboardWidget.CHART_REPORT:
             return None  # report widgets contain an entire report (rendered on frontend)
+        if widget.chart_type == DashboardWidget.CHART_KPI:
+            return fmt_kpi(
+                df,
+                value_col=p["y_col"],  # Frontend usually maps 'value' to y_col in standard charts
+                agg=p.get("agg", "sum"),
+                label=p.get("label", widget.title)
+            )
+        if widget.chart_type == DashboardWidget.CHART_PIE:
+            return fmt_pie(
+                df,
+                name_col=p["x_col"],
+                value_col=p["y_col"],
+                agg=p.get("agg", "sum")
+            )
+        if widget.chart_type == DashboardWidget.CHART_TREEMAP:
+            return fmt_treemap(
+                df,
+                name_col=p["x_col"],
+                value_col=p["y_col"],
+                agg=p.get("agg", "sum")
+            )
     except (KeyError, TypeError, ValueError) as exc:
         logger.warning("Widget %s render failed: %s", widget.pk, exc)
         return None
