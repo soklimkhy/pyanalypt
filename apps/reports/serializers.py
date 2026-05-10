@@ -11,7 +11,7 @@ class ReportItemSerializer(serializers.ModelSerializer):
 
 
 class ReportSerializer(serializers.ModelSerializer):
-    dataset_name = serializers.CharField(source="dataset.file_name", read_only=True)
+    dataset_name = serializers.ReadOnlyField(source="dataset.file_name")
     items      = ReportItemSerializer(many=True, read_only=True)
     item_count = serializers.IntegerField(source="items.count", read_only=True)
 
@@ -22,7 +22,7 @@ class ReportSerializer(serializers.ModelSerializer):
 
 
 class ReportListSerializer(serializers.ModelSerializer):
-    dataset_name = serializers.CharField(source="dataset.file_name", read_only=True)
+    dataset_name = serializers.ReadOnlyField(source="dataset.file_name")
     item_count = serializers.IntegerField(source="items.count", read_only=True)
 
     class Meta:
